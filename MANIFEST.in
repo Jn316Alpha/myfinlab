@@ -1,5 +1,16 @@
-include *.md
-include *.txt
-include Licence.txt
-recursive-include arbitragelab *.csv
-recursive-include scripts *.py
+include README.md
+include LICENSE.txt
+include pyproject.toml
+recursive-include myfinlab *.py
+recursive-include mlfinlab *.py *.csv
+recursive-include arbitragelab *.py *.csv
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude .git*
+global-exclude .DS_Store
+recursive-exclude * __pycache__
+recursive-exclude * *.py[cod]
+prune docs
+prune tests
+prune .git
+prune .github

@@ -1,77 +1,137 @@
 <div align="center">
-   <a href="https://hudsonthames.org/arbitragelab">
-   <img src="https://hudsonthames.org/wp-content/uploads/2021/04/featured-picture-arbitragelab.jpg" height="200" 
-   style="margin-left: auto; margin-right: auto; display:block;">
-   </a>
-  </br>
+   <h1>MyFinLab</h1>
+   <h3>Unified Financial Machine Learning & Statistical Arbitrage Library</h3>
+   <p>Combining the best of mlfinlab and arbitragelab into one powerful package</p>
 </div>
 
-# Welcome to the Arbitrage Laboratory! 
+# MyFinLab
 
-**What was only possible with the help of huge R&D teams is now at your disposal, anywhere, anytime.**
+**MyFinLab** is a unified Python library that combines two powerful quantitative finance libraries:
 
-[Documentation Click Here](https://hudson-and-thames-arbitragelab.readthedocs-hosted.com/en/latest/index.html).
+- **mlfinlab** - Financial machine learning algorithms based on "Advances in Financial Machine Learning" by Marcos Lopez de Prado
+- **arbitragelab** - Statistical arbitrage and pairs trading algorithms from academic research
 
-ArbitrageLab is a python library that includes both end-to-end strategies and strategy creation tools that cover the
-whole range of strategies defined by [Krauss' taxonomy](https://www.econstor.eu/bitstream/10419/116783/1/833997289.pdf) for pairs trading strategies.
+## What is MyFinLab?
 
-## What is ArbitrageLab?
+MyFinLab provides a comprehensive toolkit for quantitative finance, combining cutting-edge machine learning techniques with advanced statistical arbitrage strategies. This unified library makes it easy to leverage both financial ML and arbitrage algorithms in your trading and research workflows.
 
-ArbitrageLab is an open-source python library that enables traders who want to exploit mean-reverting portfolios
-by providing a complete set of algorithms from the best academic journals.
+## Installation
 
-View the documentation to [get started](https://hudson-and-thames-arbitragelab.readthedocs-hosted.com/en/latest/index.html).
+```bash
+pip install myfinlab
+```
 
-## Special Thank You:
-A lot of passion and love went into the creation of this library, and we would like to say special thank you to: 
+### Optional Dependencies
 
-Original Team:
-* [Jacques Francois Joubert](https://www.linkedin.com/in/jacquesjoubert/)
-* [Illya Barziy](https://www.linkedin.com/in/illyabarziy/)
-* [Valeriia Pervushyna](https://www.linkedin.com/in/valeriia-pervushyna/)
-* [Dirk Frees](https://www.linkedin.com/in/dirkfreese/)
+```bash
+# With TensorFlow support
+pip install myfinlab[tensorflow]
 
-A heartfelt thank you to Illya and Valeriia for your exceptional contributions to ArbitrageLab. Your dedication and 
-talent have been instrumental in enhancing the library and company as a whole. Your technical ingenuity,
-and meticulous attention to detail, have not only enriched our project but also set a high standard for excellence. We deeply 
-appreciate your hard work and commitment to making ArbitrageLab a success.
+# With convex optimization
+pip install myfinlab[cvxpy]
 
-A special thank you to Dirk for the quality time and deep insights you have dedicated to enhancing our business. 
-Your expertise and motivational efforts were, and continue to be invaluable. We greatly appreciate your 
-commitment and enthusiastic support. We couldn't have asked for a better Start-Up Advisor!
+# With all optional dependencies
+pip install myfinlab[all]
 
-Core Contributions
-* [Hansen Pei](https://www.linkedin.com/in/hansen-pei-0949691b3/)
-* Yefeng Wang
-* [Vijay Nadimpalli](https://www.linkedin.com/in/vijay-nadimpalli/)
-* [Joohwan Ko](https://www.linkedin.com/in/joohwan-ko-638748174/)
+# For development
+pip install myfinlab[dev]
+```
 
+## Quick Start
 
-## Dedicated to WorldQuant University (WQU)
+```python
+import myfinlab
 
-<div align="center">
-   <a href="https://www.wqu.edu/">
-   <img src="https://www.wqu.edu/_next/static/media/logo-full-color.244f5961.svg" height="150" 
-   style="margin-left: auto; margin-right: auto; display:block;">
-   </a>
-  </br>
-</div>
+# Check version
+print(myfinlab.get_version())  # 1.0.0
 
-We are thrilled to highlight an exceptional educational opportunity for those passionate about financial 
-engineering — WorldQuant University’s Master of Science in Financial Engineering (MSFE) program. This groundbreaking 
-initiative is completely online and tuition-free, democratizing advanced education in a way that's accessible to 
-individuals around the globe.
+# Check available modules
+print(myfinlab.is_mlfinlab_available())  # True
+print(myfinlab.is_arbitragelab_available())  # True
+```
 
-The MSFE program at WorldQuant University is designed to equip students with the quantitative skills essential for a 
-competitive edge in today's tech-driven finance sectors. With a curriculum that balances theory and practical 
-application, students not only gain deep insights but also practical skills that can be immediately applied in various 
-financial roles.
+## Features
 
-If you're looking to elevate your expertise or pivot your career towards quantitative finance, I encourage you to 
-explore this opportunity. WorldQuant University is not just about education; it’s about empowering future financial 
-leaders. Learn more about their [MSFE program](https://www.wqu.edu/) and take a significant step towards transforming
-your professional life.
+### From mlfinlab:
 
-## Learn To Build Production Ready Python Libraries
-We have released a course on Udemy that you can follow to produce your own open-source projects for finance.
-* [Writing Production-Grade Python Code for Quant Developers](https://www.udemy.com/course/writing-production-grade-code-for-quantitative-developers/)
+- **Cross-validation**: Financial cross-validation methods (purging, embargoing)
+- **Data Structures**: Imbalance bars, standard bars
+- **Labeling**: Triple barrier, meta-labeling
+- **Features**: Fractional differentiation
+- **Bet Sizing**: Kelly criterion, ERC predictions
+- **Feature Importance**: MDI, MDA, SFI importance
+- **Sampling**: Sequential bootstrapping
+- **Portfolio Optimization**: Hierarchical risk parity
+
+### From arbitragelab:
+
+- **Codependence**: Distance correlation, mutual information
+- **Cointegration Approach**: Engle-Granger, Johansen, multi-cointegration
+- **Copula Approach**: Archimedean, elliptical, and vine copulas
+- **Distance Approach**: Various distance-based pair selection
+- **Hedge Ratios**: ADF optimal, Box-Tiao, half-life
+- **ML Approach**: Neural networks, clustering, feature expansion
+- **Optimal Mean Reversion**: Ornstein-Uhlenbeck, CIR models
+- **Time Series Approach**: ARIMA, OU optimal thresholds
+- **Trading**: Z-score, minimum profit strategies
+
+## Usage Examples
+
+### Machine Learning (from mlfinlab)
+
+```python
+from myfinlab import labeling, bet_sizing
+
+# Create triple barrier labels
+events = labeling.get_events(
+    close_prices,
+    tp_sl=1,  # Take profit and stop loss threshold
+    min_ret=0.01,  # Minimum return
+    num_threads=3
+)
+```
+
+### Statistical Arbitrage (from arbitragelab)
+
+```python
+from myfinlab import cointegration_approach, trading
+
+# Find cointegrated pairs
+coint_pairs = cointegration_approach.run_johansen(
+    prices_dataframe,
+    target_beta=0.5,
+    significance_level=0.9
+)
+
+# Execute trading strategy
+strategy = trading.ZScoreStrategy(
+    entry_threshold=2.0,
+    exit_threshold=0.0,
+    close_threshold=0.5
+)
+```
+
+## License
+
+This project is licensed under the BSD-3-Clause License - see the [LICENSE.txt](LICENSE.txt) file for details.
+
+## Acknowledgments
+
+MyFinLab is built upon the excellent work of:
+
+- **mlfinlab** - Originally by Hudson and Thames Quantitative Research
+- **arbitragelab** - Originally by Hudson and Thames Quantitative Research
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Support
+
+For bug reports and feature requests, please open an issue on [GitHub](https://github.com/myfinlab/myfinlab/issues).
+
+## Links
+
+- [Documentation](https://myfinlab.readthedocs.io)
+- [GitHub Repository](https://github.com/myfinlab/myfinlab)
+- [Bug Reports](https://github.com/myfinlab/myfinlab/issues)

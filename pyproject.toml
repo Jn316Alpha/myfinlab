@@ -1,133 +1,180 @@
-[tool.poetry]
-name = "arbitragelab"
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "myfinlab"
 version = "1.0.0"
-description = "ArbitrageLab is a collection of algorithms from the best academic journals and graduate-level textbooks, which focuses on the branch of statistical arbitrage known as pairs trading. We have extended the implementations to include the latest methods that trade a portfolio of n-assets (mean-reverting portfolios)."
-authors = ["Hudson and Thames Quantitative Research <opensource@hudsonthames.org>"]
-license = "BSD-3-Clause"
+description = "Unified Financial Machine Learning & Statistical Arbitrage Library - Combining mlfinlab and arbitragelab"
 readme = "README.md"
-homepage = "https://www.hudsonthames.org/"
-repository = "https://github.com/hudson-and-thames/arbitragelab"
-documentation = "https://hudson-and-thames-arbitragelab.readthedocs-hosted.com/en/latest/index.html"
-keywords = ["arbitrage", "finance", "investment", "education", "trading"]
+license = {text = "BSD-3-Clause"}
+authors = [
+    {name = "MyFinLab Community", email = "community@myfinlab.org"}
+]
+maintainers = [
+    {name = "MyFinLab Community", email = "community@myfinlab.org"}
+]
+keywords = [
+    "finance",
+    "machine-learning",
+    "arbitrage",
+    "pairs-trading",
+    "statistical-arbitrage",
+    "quantitative-finance",
+    "trading",
+    "investment",
+    "portfolio-optimization",
+    "financial-engineering"
+]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Education",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Financial and Insurance Industry",
     "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Office/Business :: Financial :: Investment"
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+requires-python = ">=3.8"
+dependencies = [
+    # Core dependencies
+    "numpy>=1.24.0",
+    "pandas>=2.1.0",
+    "scipy>=1.11.0",
+    "scikit-learn>=1.3.0",
+    "matplotlib>=3.8.0",
+    "statsmodels>=0.14.0",
+    "networkx>=3.0",
+
+    # ArbitrageLab specific dependencies
+    "POT>=0.9.4",
+    "arch>=6.3.0",
+    "werkzeug>=2.3.0",
+    "yahoo-fin>=0.8.9.1",
+    "yfinance>=0.2.37",
+    "cython>=3.0.0",
+    "dash>=2.14.0",
+    "mpmath>=1.3.0",
+    "pmdarima>=2.0.4",
+    "pyvinecopulib>=0.6.5",
+    "requests_html>=0.10.0",
+    "pyzmq>=26.0.0",
+    "seaborn>=0.12.2",
+    "lxml>=4.9.1",
+    "protobuf>=4.21.0",
+    "jupyter-dash>=0.4.0",
+
+    # MLFinLab specific dependencies
+    "numba>=0.59.0",
+    "toolz>=0.12.0",
+    "cloudpickle>=2.0.0",
 ]
 
-packages = [
-    { include = "arbitragelab" }
-]
-
-exclude = ["docs", "tests"]
-
-[tool.poetry.dependencies]
-python = "^3.8"
-POT = "0.9.0"
-arch = "5.5.0"
-werkzeug = "2.2.3"
-yahoo-fin = "0.8.9.1"
-yfinance = "0.2.37"
-cython = "0.29.28"
-dash = "2.10.2"
-mpmath = "1.2.1"
-pandas = "2.0.0"
-pmdarima = "2.0.4"
-pyvinecopulib = "0.6.5"
-requests_html = "0.10.0"
-pyzmq = "26.0.0"
-seaborn = "0.12.2"
-
-statsmodels = {version = "0.14.0" }
-lxml = { version = "^4.9.1" }
-protobuf = { version = ">=3.20.3" }
-networkx = { version = ">=2.2,<2.6" }
-jupyter-dash = { version = ">=0.2.0,<1.0.0" }
-
-numpy = [
-    { version = "1.23.5", python = ">=3.8,<3.12" },
-    { version = "1.26.4", python = ">=3.12,<4" },
-]
-
-matplotlib = [
-    { version = "3.7.1", python = ">=3.8,<3.12" },
-    { version = "3.8.4", python = ">=3.12,<4" },
-]
-
-scikit-learn = [
-    { version = "1.1.3", python = ">=3.8,<3.12" },
-    { version = "1.3.0", python = ">=3.12,<4" },
-]
-
-scipy = [
-    { version = "1.10.1", python = ">=3.8,<3.9" },
-    { version = "1.11.0", python = ">=3.9,<3.10" },
-    { version = "1.12.0", python = ">=3.10,<4" },
-]
-
-tensorflow-macos = [
-    { version = "2.13.0", markers = "sys_platform == 'darwin' and platform_machine == 'arm64'", python = ">=3.8, <3.12" },
-    { version = "2.16.1", markers = "sys_platform == 'darwin' and platform_machine == 'x86_64'", python = ">=3.12, <4" }
-]
-
+[project.optional-dependencies]
+# Deep learning support
 tensorflow = [
-    { version = "2.13.0", markers = "sys_platform != 'darwin' or platform_machine != 'arm64'", python = ">=3.8, <3.12" },
-    { version = "2.16.1", markers = "sys_platform != 'darwin' or platform_machine != 'x86_64'", python = ">=3.12, <4" }
+    "tensorflow>=2.16.0",
+    "keras>=3.0.0",
 ]
-
-tensorflow-io-gcs-filesystem = { version = "0.34.0", markers = "sys_platform != 'darwin' or platform_machine != 'arm64'", python = ">=3.8, <3.12" }
-
-keras = [
-    { version = "2.13.1", python = ">=3.8,<3.12" },
-    { version = "3.0.0", python = ">=3.12,<4" },
+tensorflow-macos = [
+    "tensorflow-macos>=2.16.0",
+    "keras>=3.0.0",
 ]
-
-wrapt = { version = "1.14.0" , python = ">=3.8,<3.12" }
-
+# Convex optimization
 cvxpy = [
-    { version = "1.4.3", markers = "sys_platform != 'darwin' or platform_machine != 'arm64'", python = ">=3.8,<3.10"},
-    { version = "1.4.3", python = ">=3.10,<4"},
-] # install manually with command conda install -c conda-forge cvxpy,
-  # otherwise causes problems whit some of its dependecy 'ecos' and 'scs ->
-  #refer to this link: https://apple.stackexchange.com/questions/254380/why-am-i-getting-an-invalid-active-developer-path-when-attempting-to-use-git-a
+    "cvxpy>=1.5.0",
+]
+# All optional dependencies
+all = [
+    "myfinlab[tensorflow,cvxpy]",
+]
+# Development dependencies
+dev = [
+    "pytest>=7.3.0",
+    "pytest-cov>=3.0.0",
+    "coverage>=7.2.0",
+    "pylint>=3.1.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.0.0",
+]
+# Documentation dependencies
+docs = [
+    "sphinx>=6.2.0",
+    "sphinx-rtd-theme>=2.0.0",
+    "sphinx-tabs>=3.4.0",
+    "sphinx-autoapi>=3.0.0",
+    "sphinx-copybutton>=0.5.0",
+    "myst-parser>=2.0.0",
+    "docutils>=0.18.0",
+]
 
-[tool.poetry.urls]
-"Bug Reports" = "https://github.com/hudson-and-thames/arbitragelab/issues"
-"Blog" = "https://hudsonthames.org/blog/"
-"Apprenticeship Program" = "https://hudsonthames.org/apprenticeship-program/"
+[project.urls]
+Homepage = "https://github.com/myfinlab/myfinlab"
+Documentation = "https://myfinlab.readthedocs.io"
+Repository = "https://github.com/myfinlab/myfinlab"
+"Bug Reports" = "https://github.com/myfinlab/myfinlab/issues"
+"Source Code" = "https://github.com/myfinlab/myfinlab"
 
-[build-system]
-requires = ["poetry-core>=1.0"]
-build-backend = "poetry.core.masonry.api"
+[tool.setuptools]
+include-package-data = true
 
+[tool.setuptools.packages.find]
+include = ["myfinlab*", "mlfinlab*", "arbitragelab*"]
+exclude = ["docs*", "tests*", "*.tests"]
 
-[tool.poetry.group.tests.dependencies]
-coverage = "7.2.7"
-pylint = "3.1.0"
-pytest = "7.3.1"
-pytest-cov = "3.0.0"
+[tool.setuptools.package-data]
+"*" = ["*.txt", "*.csv", "*.json"]
 
-[tool.poetry.group.docs.dependencies]
-releases = "1.6.3"
-jinja2 = "<3.1"
-docutils = "0.18.1"
-hudsonthames-sphinx-theme = "0.1.5"
-myst-parser = "2.0.0" #3.0.0
-sphinx-rtd-theme = "2.0.0" #2.0.0
-sphinx-tabs = "3.4.1" #3.4.5
-sphinx = "6.2.1"
-sphinx-autoapi = "3.0.0"
-sphinx-copybutton = "0.5.2"
-six = "*"
+# Black formatting
+[tool.black]
+line-length = 100
+target-version = ["py38", "py39", "py310", "py311", "py312"]
+include = '\.pyi?$'
 
-[tool.poetry.extras]
-tests = ["coverage", "pylint", "pytest", "pytest-cov"]
-docs = ["sphinx", "sphinx-rtd-theme", "sphinx-tabs", "sphinx-autoapi", "sphinx-copybutton", "myst-parser", "hudsonthames-sphinx-theme", "docutils", "jinja2", "releases"]
+# isort import sorting
+[tool.isort]
+profile = "black"
+line_length = 100
+
+# Pylint configuration
+[tool.pylint.main]
+py-version = "3.8"
+
+[tool.pylint.messages_control]
+disable = [
+    "C0330",  # Wrong hanging indentation
+    "C0326",  # Bad whitespace
+]
+
+[tool.pylint.format]
+max-line-length = 100
+
+# pytest configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --cov=myfinlab --cov-report=html --cov-report=term"
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["myfinlab"]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
