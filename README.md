@@ -18,7 +18,7 @@ MyFinLab provides a comprehensive toolkit for quantitative finance, combining cu
 ## Installation
 
 ```bash
-pip install myfinlab
+pip install git+https://github.com/Jn316Alpha/myfinlab.git
 ```
 
 ### Optional Dependencies
@@ -128,10 +128,10 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Support
 
-For bug reports and feature requests, please open an issue on [GitHub](https://github.com/myfinlab/myfinlab/issues).
+For bug reports and feature requests, please open an issue on [GitHub](https://github.com/Jn316Alpha/myfinlab/issues).
 
 ## Links
 
 - [Documentation](https://myfinlab.readthedocs.io)
-- [GitHub Repository](https://github.com/myfinlab/myfinlab)
-- [Bug Reports](https://github.com/myfinlab/myfinlab/issues)
+- [GitHub Repository](https://github.com/Jn316Alpha/myfinlab)
+- [Bug Reports](https://github.com/Jn316Alpha/myfinlab/issues)
