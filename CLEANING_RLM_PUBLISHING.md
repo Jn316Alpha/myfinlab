@@ -1,205 +1,180 @@
-# Cleaning Technical Documentation for Publication
+# How to Clean Up Documentation Before Publishing
 
-## Overview
+## The Problem
 
-This document outlines the process of cleaning technical reference documentation to remove internal distractions while preserving all valuable trading content. The goal is to transform internal working documents into professional publications suitable for public distribution.
+When writing technical documentation, it's easy to use words that only make sense to you. This confuses readers who don't know your internal code names or testing methods.
 
----
+### Examples of Confusing Terms
 
-## The Problem: Internal Jargon in Technical Documentation
-
-When creating technical documentation for trading strategies and quantitative finance libraries, it's common to develop internal shorthand and framework-specific terminology that makes sense during development but becomes confusing when shared with a broader audience.
-
-### Common Internal Distractions
-
-| Type | Example | Why It's a Problem |
-|------|---------|-------------------|
-| Framework names | "RLM", "RLM lens" | External readers don't know what these mean |
-| Specific iteration counts | "20-iterations", "30-iterations" | Implementation details, not general knowledge |
-| Internal paths | "MARCOS_RLM/" | Not relevant to external users |
-| Development notes | "DO THIS IN VENV" | Instructions for setup, not for understanding concepts |
+| Confusing Term | Why It Confuses People |
+|---------------|----------------------|
+| "RLM framework" | Nobody knows what this means |
+| "20-iterations" | Why 20? Why not 10 or 30? |
+| "rolling window" | Sounds technical, just say "test multiple times" |
+| Internal code names | Readers don't have your codebase |
 
 ---
 
-## What Was Done
+## What To Do
 
-### Step 1: Identify Internal Distractions
+### Step 1: Remove Words That Only You Understand
 
-Scanned both reference documents for:
-- **RLM references** - Removed and replaced with generic terms
-- **Specific iteration counts** - Generalized to "rolling window validation"
-- **Internal framework names** - Replaced with descriptive terms
-- **Development-specific comments** - Removed or generalized
+**Bad:**
+```
+Using the RLM framework with 20-iterations validation...
+```
 
-### Step 2: Replace with Professional Equivalents
+**Good:**
+```
+Test the strategy multiple times on different time periods to make sure it works.
+```
 
-| Before | After |
-|--------|-------|
-| "RLM framework" | "Marcos Lopez de Prado's framework" |
-| "20-iteration RLM" | "rolling window validation" |
-| "30-iterations" | "rolling windows" |
-| "RLM lens" | "financial ML perspective" |
-| "Marcos RLM" | "Marcos Lopez de Prado" |
-| ">= 15/20 iterations" | ">= 75% of windows" |
+### Step 2: Use Simple Words
 
-### Step 3: Preserve All Valuable Content
+**Bad:**
+```
+Apply rolling window validation framework.
+```
 
-**KEPT** (all trading information):
-- Research paper citations
-- WHO, WHAT, WHEN, WHERE, WHY, HOW for each function
-- Code examples
-- Technical details
-- Bias explanations
-- Validation criteria
-- Pipeline order
+**Good:**
+```
+Test on past data, then test again on newer data. Do this multiple times.
+```
+
+### Step 3: Explain Numbers or Remove Them
+
+**Bad:**
+```
+Valid in 15 out of 20 iterations (75%)
+```
+
+**Good:**
+```
+Valid in most test periods (75% of the time)
+```
 
 ---
 
-## Before and After Comparison
+## Changes Made
 
-### Before (Internal Draft)
+### Files Created
+- `MLFINLAB_COMPLETE_REFERENCE.txt` - Clean version
+- `ARBITRAGELAB_COMPLETE_REFERENCE.txt` - Clean version
+
+### Files Deleted
+- `MLFINLAB_ONLY_COMPLETE.txt` - Had confusing internal terms
+- `ARBITRAGELAB_COMPLETE_RLM_REPORT.txt` - Had confusing internal terms
+
+---
+
+## Simple Rules
+
+### Rule 1: Use Words Everyone Knows
+
+| Don't Write | Write This Instead |
+|-------------|-------------------|
+| "Apply framework" | "Use this method" |
+| "Rolling window" | "Different time periods" |
+| "Validation framework" | "Testing" |
+| "Bias prevention" | "Avoiding mistakes" |
+| "Pipeline order" | "Step-by-step process" |
+
+### Rule 2: Write Like You're Explaining to a Friend
+
+Don't write like a research paper. Write like you're talking to another trader.
+
+**Bad:**
+```
+Implement sequential bootstrap to maximize uniqueness.
+```
+
+**Good:**
+```
+When selecting training samples, choose ones that don't overlap much. This gives better results.
+```
+
+### Rule 3: Remove Internal Code Names
+
+Readers don't know your file names or folder names.
+
+**Bad:**
+```
+See MARCOS_RLM/ for more details.
+```
+
+**Good:**
+```
+See the research papers listed above for more details.
+```
+
+---
+
+## Before and After
+
+### Before (Confusing)
 ```
 20-ITERATION RLM APPLICATION:
 for i in range(20):
     train_start = i * step_size
-    ...
-
-BIASES PREVENTED:
-- Time-series bias: 20 iterations reveals cointegration stability
+    train_end = start + 126
 ```
 
-### After (Professional Version)
+### After (Clear)
 ```
-ROLLING WINDOW VALIDATION:
-for i in range(n_windows):
-    train_start = i * step_size
-    ...
-
-BIASES PREVENTED:
-- Time-series bias: rolling windows reveal cointegration stability
+TEST MULTIPLE TIME PERIODS:
+Split your data into chunks. For each chunk, use past data to train and future data to test.
+This tells you if the strategy works consistently or just got lucky once.
 ```
 
 ---
 
-## File Changes Summary
+## What to Keep
 
-### Files Created (Clean Versions)
-- `MLFINLAB_COMPLETE_REFERENCE.txt` (760 lines)
-- `ARBITRAGELAB_COMPLETE_REFERENCE.txt` (820 lines)
+Keep ALL the actual trading information:
+- Research papers
+- What each function does
+- When to use it
+- Why it works
+- Code examples
+- Problems it solves
 
-### Files Deleted (Internal Drafts)
-- `MLFINLAB_ONLY_COMPLETE.txt` (had RLM, 30-iterations)
-- `ARBITRAGELAB_COMPLETE_RLM_REPORT.txt` (had RLM, 20-iterations)
-- `MLFINLAB_ARBITRAGELAB_COMPLETE.txt` (incomplete)
-- `MLFINLAB_COMPLETE_REPORT.txt` (incomplete)
-
----
-
-## General Principles for Cleaning Documentation
-
-### 1. Externalize Internal Names
-**Bad:** "Using the RLM framework with 20 iterations..."
-**Good:** "Using rolling window validation with multiple windows..."
-
-### 2. Generalize Specific Numbers
-**Bad:** "Valid in >= 15/20 iterations (75%)"
-**Good:** "Valid in >= 75% of windows"
-
-### 3. Explain Acronyms on First Use
-**Bad:** "Use AFML Ch 5 methods..."
-**Good:** "Use methods from 'Advances in Financial Machine Learning' Chapter 5..."
-
-### 4. Remove Development Instructions
-**Bad:** "DO THIS IN VENV - pip install mlfinlab"
-**Good:** (remove entirely, or move to separate installation guide)
-
-### 5. Focus on Concepts, Not Implementation
-**Bad:** "for i in range(20):" (why 20?)
-**Good:** "for i in range(n_windows):" (number of windows varies by data)
+Just explain them in simple words.
 
 ---
 
-## Publication Checklist
+## Simple Checklist
 
-Use this checklist before publishing technical documentation:
+Before publishing, ask yourself:
 
-- [ ] No internal framework names (or fully explained)
-- [ ] No specific iteration counts (or explained as examples)
-- [ ] No internal file paths
-- [ ] No development environment setup mixed with concepts
-- [ ] Research papers properly cited
-- [ ] Code examples are self-contained
-- [ ] Validation criteria are generalized
-- [ ] Bias explanations stand alone without internal context
-- [ ] Pipeline order is clear without internal jargon
+- [ ] Would a non-programmer understand this?
+- [ ] Did I explain acronyms?
+- [ ] Are numbers explained or removed?
+- [ ] Did I remove internal file names?
+- [ ] Did I remove internal code names?
+- [ ] Would this make sense to someone new to trading?
 
 ---
 
-## Why This Matters
+## The Main Point
 
-### For Blog Posts
-Internal jargon confuses readers and makes content seem "draft-like" rather than professional.
+**Write for humans, not for other developers.**
 
-### For Documentation
-Users want to understand concepts, not your internal development process.
-
-### For Presentations
-Audiences need clear, self-contained explanations that don't require knowing your internal shorthand.
-
-### For Publications
-Journals and publishers require clean, professional language without undefined acronyms.
+If you need to know someone's internal system to understand your writing, you failed.
 
 ---
 
-## The Golden Rule
+# Summary
 
-> **"If it requires internal knowledge to understand, it doesn't belong in published documentation."**
+**What was changed:**
+- Removed words only insiders understand
+- Replaced technical terms with plain English
+- Removed specific numbers that don't matter to readers
+- Kept all the actual trading knowledge
 
-Every piece of information should be self-contained or clearly explained. External readers shouldn't need to know:
-- Your internal framework names
-- Your specific testing parameters
-- Your development environment
-- Your internal shorthand
-
----
-
-## Quick Reference: Common Replacements
-
-| Internal Term | Professional Replacement |
-|---------------|------------------------|
-| "RLM" | "rolling validation framework" |
-| "Marcos RLM" | "Marcos Lopez de Prado" |
-| "20-iterations" | "rolling windows" |
-| "30-iterations" | "multiple windows" |
-| ">= 15/20" | ">= 75%" |
-| "DO THIS IN VENV" | (remove or move to install guide) |
-| "RLM lens" | "quantitative finance perspective" |
-| "MARCOS_RLM/" | (remove internal paths) |
-
----
-
-## Result
-
-The cleaned documents are now:
-- **Professional** - No internal jargon
-- **Self-contained** - No external context required
-- **Publishable** - Suitable for blogs, documentation, presentations
-- **Timeless** - Won't become obsolete when internal parameters change
-
----
-
-## Git Commits
-
-**Commit 1:** `a538a9f` - Added cleaned reference reports
-**Commit 2:** `beb843e` - Removed old draft files
-
----
-
-## Files
-
-- **Input:** `MLFINLAB_ONLY_COMPLETE.txt`, `ARBITRAGELAB_COMPLETE_RLM_REPORT.txt`
-- **Output:** `MLFINLAB_COMPLETE_REFERENCE.txt`, `ARBITRAGELAB_COMPLETE_REFERENCE.txt`
-- **This Document:** `CLEANING_RLM_PUBLISHING.md`
+**Why:**
+- More people can understand it
+- Looks more professional
+- Doesn't become obsolete when your internal setup changes
 
 ---
 
