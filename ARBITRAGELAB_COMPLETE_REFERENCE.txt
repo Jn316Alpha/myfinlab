@@ -1,0 +1,1060 @@
+================================================================================
+        ARBITRAGELAB COMPLETE REFERENCE - EVERY STRATEGY/SCRIPT
+              Aligned with "Advances in Financial Machine Learning"
+                   For Trading Micro E-Mini Futures
+================================================================================
+
+TOTAL FUNCTIONS CATALOGUED: 100+
+
+Every single script with WHO, WHAT, WHEN, WHERE, WHY, HOW from financial ML perspective.
+Applied to Micro E-Mini (MES, MNQ, MYM, M2K) trading.
+
+================================================================================
+PART 1: COINTEGRATION APPROACH (PAIRS TRADING FOUNDATION)
+================================================================================
+
+RESEARCH PAPERS:
+- Engle, R.F. and Granger, C.W.J. (1987) "Co-integration and Error Correction: Representation, Estimation, and Testing"
+- Johansen, S. (1988) "Statistical Analysis of Cointegration Vectors"
+- Vidyamurthy, G. (2004) "Pairs Trading: Quantitative Methods and Analysis"
+
+MLFINLAB FRAMEWORK CONNECTION:
+- Cointegration solves the NON-STATIONARITY problem (AFML Chapter 5)
+- Creates stationary spreads required for ML (fracdiff alternative)
+- Prevents SPURIOUS REGRESSION bias
+
+--------------------------------------------------------------------------------
+
+FILE: cointegration_approach/engle_granger.py
+--------------------------------------------------------------------------------
+
+1. EngleGrangerPortfolio class
+
+   WHO: Engle & Granger (Nobel Prize winners, 1987)
+
+   WHAT: Two-step OLS-based cointegration testing and hedge ratio estimation
+        - Step 1: Estimate long-run equilibrium relationship via OLS
+        - Step 2: Test residuals for unit root (ADF test)
+        - Returns hedge ratios and test statistics
+
+   PROBLEM SOLVED: Creates stationary spread from non-stationary price series.
+                   Prevents spurious regression in pairs trading.
+                   Identifies long-run equilibrium relationships.
+
+   WHEN TO USE (Micro E-Minis):
+   - PRIMARY CHOICE for 2-asset pairs (MES-MNQ, MYM-M2K)
+   - When you want the simplest cointegration method
+   - For daily or higher frequency data
+   - When one asset is clearly the dependent variable
+
+   WHERE IN PIPELINE:
+   1. Data: Load MES and MNQ dollar bars
+   2. fit(): Estimate hedge ratio β where MES = α + β×MNQ + ε
+   3. Check ADF statistic: Is ε stationary?
+   4. If p-value < 0.05: Cointegrated, proceed to trading
+   5. If p-value >= 0.05: Not cointegrated, discard pair
+
+   WHY:
+   - SPURIOUS REGRESSION BIAS: Non-stationary series can appear correlated by chance
+   - Engle-Granger tests ensure TRUE economic relationship
+   - Stationary spread = required for mean reversion strategies
+   - Connection to AFML Ch 5: fracdiff creates stationarity in single series
+     cointegration creates stationarity across SERIES
+
+   HOW (Micro E-Mini Example):
+   ```python
+   from arbitragelab.cointegration_approach import EngleGrangerPortfolio
+
+   # Load MES and MNQ dollar bars
+   eg_portfolio = EngleGrangerPortfolio()
+   eg_portfolio.fit(price_data=pd.DataFrame({'MES': mes_prices, 'MNQ': mnq_prices}))
+
+   # Check results
+   hedge_ratio = eg_portfolio.hedge_ratios  # β for MNQ
+   adf_stat = eg_portfolio.adf_statistics  # 99%, 95%, 90% critical values
+
+   # Spread for trading: spread = MES - hedge_ratio × MNQ
+   ```
+
+   ROLLING WINDOW VALIDATION:
+   ```python
+   for i in range(n_windows):
+       train_start = i * step_size
+       train_end = train_start + train_length
+       test_start = train_end
+       test_end = test_start + test_length
+
+       # Fit on training window
+       eg_portfolio.fit(price_data[train_start:train_end])
+
+       # Test cointegration stability
+       if eg_portfolio.adf_statistics.loc['statistic_value'][0] < -2.86:  # 5% critical
+           # Record pair as valid
+           valid_pairs[i] = (MES, MNQ, hedge_ratio)
+   ```
+
+   VALIDATION CRITERIA:
+   - ADF statistic < -2.86 (5% level) in >= 75% of windows
+   - Hedge ratio stable (std < 0.1 across windows)
+
+2. perform_eg_test(residuals)
+
+   WHO: Engle & Granger (via Dickey-Fuller test)
+
+   WHAT: Performs Augmented Dickey-Fuller test on OLS residuals
+
+   PROBLEM SOLVED: Tests whether residuals are stationary (mean-reverting)
+
+   WHEN TO USE: Called automatically by fit(), or for testing custom spreads
+
+   WHY: Determines if pair is truly cointegrated vs spurious correlation
+
+3. get_ols_hedge_ratio(price_data, dependent_variable, add_constant)
+
+   WHAT: Computes OLS regression: y = βX + α
+
+   WHEN TO USE: Internal function, called by fit()
+
+   WHY: Estimates hedge ratio for pairs trading
+
+--------------------------------------------------------------------------------
+
+FILE: cointegration_approach/johansen.py
+--------------------------------------------------------------------------------
+
+4. JohansenPortfolio class
+
+   WHO: Johansen (1988), extension of Engle-Granger for multi-asset portfolios
+
+   WHAT: Multivariate cointegration testing using eigenvalue decomposition
+        - Tests multiple cointegrating relationships simultaneously
+        - Returns multiple hedge ratio vectors (rank r cointegration)
+        - More powerful than Engle-Granger for 3+ assets
+
+   PROBLEM SOLVED: Engle-Granger only handles 2 assets. Johansen handles N assets.
+                   Detects multiple independent cointegrating relationships.
+                   More statistical power for portfolio construction.
+
+   WHEN TO USE (Micro E-Minis):
+   - 3+ asset portfolios (MES-MNQ-MYM-M2K triplet)
+   - When Engle-Granger fails but theory suggests cointegration
+   - For finding the strongest mean-reverting portfolio among several
+   - Sector-based pairs (all micro E-minis together)
+
+   WHERE IN PIPELINE:
+   1. Data: Load MES, MNQ, MYM, M2K prices
+   2. fit(): Compute eigenvalues and eigenvectors
+   3. Check trace statistic and max eigen statistic
+   4. Select eigenvector with highest eigenvalue (most mean-reverting)
+   5. Normalize hedge ratios
+
+   WHY:
+   - MULTICOLLINEARITY: Micro E-minis highly correlated, need to find true relationships
+   - Johansen identifies RANK of cointegration (number of independent relationships)
+   - First eigenvector = strongest mean reversion = best trading candidate
+   - Connection to AFML Ch 8: PCA-like decomposition but for cointegration
+
+   HOW (Micro E-Mini Example):
+   ```python
+   from arbitragelab.cointegration_approach import JohansenPortfolio
+
+   # Load 4 micro E-minis
+   johansen = JohansenPortfolio()
+   johansen.fit(price_data=pd.DataFrame({
+       'MES': mes_prices,
+       'MNQ': mnq_prices,
+       'MYM': mym_prices,
+       'M2K': m2k_prices
+   }), det_order=0, n_lags=1)
+
+   # First eigenvector = strongest mean-reverting portfolio
+   best_hedge_ratios = johansen.hedge_ratios.iloc[0]
+
+   # Check significance
+   trace_stat = johansen.johansen_trace_statistic
+   eigen_stat = johansen.johansen_eigen_statistic
+   ```
+
+   VALIDATION CRITERIA:
+   - Trace statistic > critical value at 95% level in >= 75% of windows
+   - First eigenvalue > 0.1 (strong cointegration)
+   - Hedge ratios stable across windows
+
+================================================================================
+PART 2: DISTANCE APPROACH (GATEV-GOETZMANN-ROUWENHORST)
+================================================================================
+
+RESEARCH PAPER:
+- Gatev, E., Goetzmann, W.N., and Rouwenhorst, K.G. (2006) "Pairs Trading: Performance of a Relative-Value Arbitrage Rule"
+  Review of Financial Studies, 19(3), 797-827
+
+MLFINLAB FRAMEWORK CONNECTION:
+- NON-PARAMETRIC approach (no cointegration testing)
+- Based on minimizing SSD (sum of squared deviations)
+- Alternative to cointegration when tests fail
+- WARNING: Susceptible to spurious regression bias - always verify with cointegration
+
+--------------------------------------------------------------------------------
+
+FILE: distance_approach/basic_distance_approach.py
+--------------------------------------------------------------------------------
+
+5. DistanceStrategy class
+
+   WHO: Gatev, Goetzmann, Rouwenhorst (2006) - seminal pairs trading paper
+
+   WHAT: Distance-based pairs trading using normalized price distances
+        - Normalize prices: (P - min) / (max - min)
+        - Find pairs minimizing SSD: Σ(P1_t - P2_t)²
+        - Trade when spread diverges by > 2 std deviations
+        - Close when spread crosses zero
+
+   PROBLEM SOLVED: Simplifies pair discovery (no cointegration tests needed).
+                   BUT: May find spurious correlations.
+                   Good for initial screening, then verify with cointegration.
+
+   WHEN TO USE (Micro E-Minis):
+   - INITIAL PAIR DISCOVERY: Find candidate pairs
+   - When cointegration tests are inconclusive
+   - For large universe screening (100+ assets)
+   - As FILTER before Engle-Granger verification
+
+   WHERE IN PIPELINE:
+   1. Data: Load micro E-mini dollar bars
+   2. form_pairs(): Find closest pairs by SSD
+   3. Select top N pairs (usually 5-20)
+   4. VERIFY with cointegration test
+   5. trade_pairs(): Generate signals for verified pairs
+
+   WHY:
+   - SAMPLING BIAS: SSD minimization on normalized prices can find spurious patterns
+   - CRITICAL: Always verify cointegration! Distance alone is insufficient!
+   - Connection to AFML Ch 2: Normalization loses information
+   - Recommendation: Use distance for SCREENING only, then verify
+
+   HOW (Micro E-Mini Example):
+   ```python
+   from arbitragelab.distance_approach import DistanceStrategy
+
+   # Screening phase
+   distance = DistanceStrategy()
+   distance.form_pairs(
+       train_data=price_data[:split_point],
+       method='standard',  # or 'zero_crossing' or 'variance'
+       num_top=10
+   )
+
+   # Get candidate pairs
+   pairs = distance.get_pairs()  # Top 10 by SSD
+
+   # VERIFY with cointegration!
+   verified_pairs = []
+   for pair in pairs:
+       eg = EngleGrangerPortfolio()
+       eg.fit(price_data[pair])
+       if eg.adf_statistics.loc['statistic_value'][0] < -2.86:
+           verified_pairs.append(pair)
+
+   # Trade only verified pairs
+   distance.trade_pairs(test_data=price_data[split_point:], divergence=2)
+   ```
+
+   SELECTION METHODS:
+   - 'standard': Sort by SSD (default)
+   - 'zero_crossing': Sort by number of zero crossings (more crossings = better)
+   - 'variance': Sort by spread variance (higher = more opportunities)
+
+   VALIDATION CRITERIA:
+   - Pair appears in >= 60% of windows
+   - Cointegration verified in >= 75% of windows
+   - Positive Sharpe in >= 75% of windows
+
+6. form_pairs(train_data, method, num_top, industry_dict, ...)
+
+   WHAT: Pairs formation using distance minimization
+
+   KEY PARAMETERS:
+   - method: 'standard' (SSD), 'zero_crossing' (mean reversion frequency), 'variance' (opportunity)
+   - num_top: Number of pairs to select
+   - industry_dict: Restrict pairing to same industry (not relevant for micro E-minis)
+
+   WHY: zero_crossing method preferred - proxies for mean reversion quality
+
+7. trade_pairs(test_data, divergence)
+
+   WHAT: Generate trading signals for formed pairs
+
+   LOGIC:
+   - Entry: |spread| > divergence × std (usually 2)
+   - Exit: spread crosses zero
+
+   WHY: Simple, robust trading rule
+
+================================================================================
+PART 3: COPLA APPROACH (TAIL DEPENDENCE MODELING)
+================================================================================
+
+RESEARCH PAPERS:
+- Liew, R.Q. and Wu, Y. (2013) "Pairs trading: A copula approach" Journal of Trading
+- Xiu, D. "Stochastic arbitrage" (various papers)
+- Cherubini, U. et al. (2004) "Copula Methods in Finance"
+
+MLFINLAB FRAMEWORK CONNECTION:
+- MODELS TAIL DEPENDENCE (correlation in extreme moves)
+- Captures ASYMMETRIC correlations
+- Unlike Pearson correlation which assumes linear relationship
+- Critical for CRASH PERIODS
+
+--------------------------------------------------------------------------------
+
+FILE: copula_approach/base.py (Copula abstract class)
+--------------------------------------------------------------------------------
+
+8. Copula class (abstract base for all copulas)
+
+   WHO: Sklar (1959) - copula theory, applied to finance by Cherubini, Liew, Wu
+
+   WHAT: Models joint distribution of TWO ASSETS separating marginal distributions from dependence
+        - C(u,v) = joint CDF
+        - u, v = marginal CDFs (pseudo-observations)
+        - Captures tail dependence: Correlation during crashes/explosions
+
+   PROBLEM SOLVED: Pearson correlation misses ASYMMETRIC and TAIL dependence.
+                   Pairs can be uncorrelated normally but highly correlated in crashes.
+                   Copula captures this - critical for risk management.
+
+   WHEN TO USE (Micro E-Minis):
+   - RISK MANAGEMENT: Estimate joint crash probability
+   - OPTION VALUATION: Pricing spread options
+   - SIGNAL GENERATION: When dependence deviates from normal
+   - STRESS TESTING: "What happens in a crash?"
+
+   WHERE IN PIPELINE:
+   1. Data: Load MES and MNQ returns
+   2. Transform to pseudo-observations: u = F(MES), v = F(MNQ)
+   3. fit(): Estimate copula parameter θ from Kendall's tau
+   4. get_condi_prob(): P(MES_move | MNQ_move)
+   5. Trade when conditional probability is extreme
+
+   WHY:
+   - AFML Ch 16: Portfolio optimization requires tail dependence, not just correlation
+   - Market crises proved correlations are NOT constant
+   - Copulas capture DEPENDENCE STRUCTURE separately from marginals
+   - Student-t copula: Symmetric tail dependence (both crashes and rallies)
+   - Clayton copula: Lower tail dependence (crashes only)
+   - Gumbel copula: Upper tail dependence (rallies only)
+
+   COPULA TYPES (for Micro E-Minis):
+   - Gaussian: No tail dependence (underestimates risk)
+   - Student-t: Symmetric tail dependence (recommended for equities)
+   - Clayton: Lower tail (bearish dependence)
+   - Gumbel: Upper tail (bullish dependence)
+   - Frank: No tail but asymmetric
+
+   HOW (Micro E-Mini Example):
+   ```python
+   from arbitragelab.copula_approach import StudentCopula
+
+   # Load MES and MNQ RETURNS (not prices!)
+   returns = pd.DataFrame({
+       'MES': mes_close.pct_change(),
+       'MNQ': mnq_close.pct_change()
+   }).dropna()
+
+   # Transform to uniform (pseudo-observations)
+   from scipy import stats
+   u = stats.rankdata(returns['MES']) / len(returns)
+   v = stats.rankdata(returns['MNQ']) / len(returns)
+
+   # Fit Student-t copula
+   copula = StudentCopula()
+   theta = copula.fit(u, v)  # Estimates from Kendall's tau
+
+   # Get conditional probability
+   cond_prob = copula.get_condi_prob(0.1, 0.1)  # P(MES < 10th percentile | MNQ < 10th percentile)
+
+   # Trading: When MES crashes given MNQ crash
+   if cond_prob > 0.7:  # High crash dependence
+       # Reduce position size (risk management)
+       # Or hedge with options
+   ```
+
+   BIASES PREVENTED:
+   - NORMALITY BIAS: Gaussian copula underestimates tail risk (2008 mistake!)
+   - Use Student-t copula for realistic tail dependence
+   - Time-varying tail dependence: rolling windows reveal regime changes
+
+9. fit(u, v) -> theta_hat
+
+   WHAT: Estimates copula parameter θ from Kendall's tau
+
+   WHY: Kendall's tau is robust to outliers vs Pearson correlation
+
+10. get_condi_prob(u, v) -> P(U<=u | V=v)
+
+   WHAT: Conditional probability - key for trading signals
+
+   USE CASE: "Given MNQ crashes 5%, what's probability MES crashes 5%?"
+
+   WHY: Dynamic hedge ratios based on conditional probabilities
+
+11. get_cop_density(u, v) -> c(u,v)
+
+   WHAT: Copula density - likelihood of observing (u,v)
+
+   USE CASE: Detecting regime changes in dependence
+
+COPULA SUBTYPES (6 Archimedean + 2 Elliptical):
+
+12. StudentCopula (RECOMMENDED for Micro E-Minis)
+
+    WHAT: Student-t copula with ν degrees of freedom
+
+    PARAMETERS: θ (dependence), ν (tail heaviness)
+
+    WHY RECOMMENDED: Captures symmetric tail dependence (crashes AND rallies)
+                     Most realistic for equity indices
+                     ν parameter controls tail strength
+
+    MICRO E-MINI USE: MNQ-MES pair with Student-t copula for crash hedging
+
+13. ClaytonCopula
+
+    WHAT: Asymmetric lower-tail copula
+
+    WHEN TO USE: Bearish markets, crash focus only
+
+    MICRO E-MINI USE: MNQ-MES in bear regime
+
+14. GumbelCopula
+
+    WHAT: Asymmetric upper-tail copula
+
+    WHEN TO USE: Bullish markets, rally focus only
+
+    MICRO E-MINI USE: MNQ-MES in bull regime
+
+15. FrankCopula
+
+    WHAT: Symmetric but no tail dependence
+
+    WHEN TO USE: When correlation is asymmetric but tails are independent
+
+16. GaussianCopula (NOT RECOMMENDED)
+
+    WHAT: No tail dependence
+
+    WHY NOT: Underestimates crash risk
+
+    WARNING: Only use for baseline comparison, never for live trading!
+
+17. IndependentCopula
+
+    WHAT: No dependence at all
+
+    WHEN TO USE: Baseline comparison
+
+================================================================================
+PART 4: OPTIMAL MEAN REVERSION (ORNSTEIN-UHLENBECK MODEL)
+================================================================================
+
+RESEARCH PAPERS:
+- Leung, T. and Li, X. (2015) "Optimal Mean Reversion Trading: Mathematical Analysis and Practical Applications"
+- Bertram, W.K. (2010) "Analytic Solutions for Optimal Statistical Arbitrage Trading" Physica A
+- Jurek, J.W. and Yang, H. (2007) "Dynamic Portfolio Selection in Arbitrage" EFA Meetings
+
+MLFINLAB FRAMEWORK CONNECTION:
+- Models mean-reverting process as OU: dX = μ(θ - X)dt + σdW
+- θ = long-term mean, μ = speed of reversion, σ = volatility
+- Solves OPTIMAL STOPPING problem: When to enter/exit?
+- Prevents AD-HOC parameter selection bias
+
+--------------------------------------------------------------------------------
+
+FILE: optimal_mean_reversion/ou_model.py
+--------------------------------------------------------------------------------
+
+18. OrnsteinUhlenbeck class
+
+    WHO: Tim Leung & Xin Li (2015) - book on optimal mean reversion
+
+    WHAT: Solves optimal double-stopping problem for OU process:
+         - Entry level: When to open position?
+         - Exit level: When to close position?
+         - Stop-loss: Optional constraint
+         - Accounts for transaction costs and discount rates
+
+    PROBLEM SOLVED: AD-HOC PARAMETER SELECTION BIAS.
+                   Traders pick arbitrary thresholds (2 std, etc.).
+                   Leung-Li derives MATHEMATICALLY OPTIMAL levels.
+                   Maximizes expected return with transaction costs.
+
+    WHEN TO USE (Micro E-Minis):
+    - AFTER cointegration confirmed
+    - For stationary spreads (MES-MNQ, etc.)
+    - When you need OPTIMAL entry/exit (not arbitrary thresholds)
+    - For risk management with stop-loss
+
+    WHERE IN PIPELINE:
+    1. Data: Cointegrated spread (from Engle-Granger or Johansen)
+    2. fit(): Estimate OU parameters (θ, μ, σ)
+    3. optimal_entry_level(): Compute entry threshold
+    4. optimal_liquidation_level(): Compute exit threshold
+    5. Trade when spread crosses these levels
+
+    WHY:
+    - AFML Ch 10: Bet sizing requires accounting for transaction costs
+    - Leung-Li: CLOSED-FORM solutions (no Monte Carlo needed)
+    - Objective: Maximize (expected return - transaction cost) discounted to present
+    - Uses stochastic calculus (Itô's lemma, optimal stopping)
+    - Result: Entry and exit levels that MAXIMIZE expected Sharpe
+
+    HOW (Micro E-Mini Example):
+    ```python
+    from arbitragelab.optimal_mean_reversion import OrnsteinUhlenbeck
+
+    # Assume we have cointegrated MES-MNQ spread
+    eg = EngleGrangerPortfolio()
+    eg.fit(mes_mnq_prices)
+    spread = mes_prices - eg.hedge_ratios['MNQ'] * mnq_prices
+
+    # Fit OU model
+    ou = OrnsteinUhlenbeck()
+    ou.fit(
+        data=spread,
+        data_frequency='D',  # Daily bars
+        discount_rate=0.05,  # 5% annual discount
+        transaction_cost=0.0002  # ~$2 per contract
+    )
+
+    # Get optimal levels
+    entry_level = ou.optimal_entry_level()  # e.g., -0.8
+    exit_level = ou.optimal_liquidation_level()  # e.g., -0.2
+
+    # Trading rule
+    if spread < entry_level:
+        # Long the spread (long MES, short MNQ)
+    elif spread > exit_level:
+        # Close position
+
+    # Check half-life
+    half_life_days = ou.half_life()
+    print(f"Expected mean reversion: {half_life_days:.1f} days")
+    ```
+
+    PARAMETERS INTERPRETATION:
+    - θ (theta): Long-term mean of spread (usually ~0 for cointegrated pairs)
+    - μ (mu): Speed of reversion (higher = faster mean reversion)
+    - σ (sigma): Volatility of spread
+    - Half-life = ln(2)/μ: Average time to revert halfway to mean
+
+    VALIDATION CRITERIA:
+    - Half-life < 30 days in >= 75% of windows
+    - Entry level < 0 (for mean-reversion to positive mean)
+    - Exit level > entry level (arbitrage exists)
+    - μ > 0.01 (positive reversion speed) in all windows
+
+    BIASES PREVENTED:
+    - AD-HOC SELECTION BIAS: Mathematical optimal, not arbitrary
+    - LOOK-AHEAD BIAS: Parameters estimated on training data only
+    - OVERFITTING: Rolling windows reveal parameter stability
+
+19. fit(data, data_frequency, discount_rate, transaction_cost, stop_loss)
+
+    WHAT: Fits OU model via maximum likelihood
+
+    KEY PARAMETERS:
+    - data_frequency: 'D', 'M', or 'Y' (affects Δt)
+    - discount_rate: Annual rate (e.g., 0.05 for 5%)
+    - transaction_cost: Per-trade cost (e.g., 0.0002 for MES)
+    - stop_loss: Optional stop-loss level
+
+    WHY: Accounts for TIME VALUE OF MONEY and COSTS (critical!)
+
+20. optimal_entry_level() -> b*
+
+    WHAT: Computes optimal entry threshold (solves F(b*) = b* - c_e)
+
+    INTERPRETATION: Enter when spread < b* (for long) or spread > -b* (for short)
+
+    WHY: Maximizes expected return given transaction cost
+
+21. optimal_liquidation_level() -> d*
+
+    WHAT: Computes optimal exit threshold
+
+    INTERPRETATION: Exit when spread > d* (close long) or spread < -d* (close short)
+
+    WHY: Captures profit before mean reversion reverses
+
+22. half_life() -> ln(2)/μ
+
+    WHAT: Expected time to revert halfway to mean
+
+    USE CASE: Validate that mean reversion is fast enough to trade
+
+    CRITICAL: If half-life > 60 days, not practical for futures trading
+
+23. V(price), V_sl(price)
+
+    WHAT: Expected discounted value of liquidation
+
+    WHY: Used to compute optimal levels (value function in dynamic programming)
+
+--------------------------------------------------------------------------------
+
+FILE: time_series_approach/ou_optimal_threshold_bertram.py
+--------------------------------------------------------------------------------
+
+24. OUModelOptimalThresholdBertram class
+
+    WHO: W.K. Bertram (2010) - Physica A
+
+    WHAT: Alternative optimal thresholds for OU process:
+         - Closed-form solutions (faster than Leung-Li)
+         - Maximizes Sharpe ratio OR expected return
+         - Assumes symmetric thresholds (entry at ±a, exit at ±m)
+
+    PROBLEM SOLVED: Leung-Li requires numerical solving.
+                   Bertram provides ANALYTICAL solutions.
+                   Faster computation, easier to understand.
+
+    WHEN TO USE (Micro E-Minis):
+    - When speed matters (real-time optimization)
+    - For comparison with Leung-Li results
+    - When you want to maximize Sharpe (not just return)
+
+    WHY:
+    - Sharpe maximization accounts for RISK-ADJUSTED returns
+    - Closed-form = fewer numerical issues
+    - Good for rolling validation (faster computation)
+
+    HOW (Micro E-Mini Example):
+    ```python
+    from arbitragelab.time_series_approach import OUModelOptimalThresholdBertram
+
+    # Fit to spread
+    bertram = OUModelOptimalThresholdBertram()
+    bertram.fit(spread)
+
+    # Get thresholds maximizing Sharpe
+    a, m = bertram.get_threshold_by_maximize_sharpe_ratio(
+        c=0.0002,  # Transaction cost
+        rf=0.02  # Risk-free rate
+    )
+
+    # a = entry threshold, m = exit threshold
+    # Trade: enter when |spread| > a, exit when |spread| < m
+    ```
+
+    VALIDATION: Compare with Leung-Li results - should be similar
+
+================================================================================
+PART 5: HEDGE RATIOS (SPREAD CONSTRUCTION)
+================================================================================
+
+--------------------------------------------------------------------------------
+
+FILE: hedge_ratios/half_life.py
+--------------------------------------------------------------------------------
+
+25. get_minimum_hl_hedge_ratio(price_data, dependent_variable)
+
+    WHAT: Finds hedge ratio that MINIMIZES half-life of mean reversion
+         - Optimizes β to maximize speed of reversion
+         - Objective: Minimize |HL(β)|
+         - Uses numerical optimization (BFGS)
+
+    PROBLEM SOLVED: OLS hedge ratio may not minimize half-life.
+                   Faster mean reversion = more trades = more profit.
+                   Finds β that creates most stationary spread.
+
+    WHEN TO USE (Micro E-Minis):
+    - When OLS spread has long half-life (> 30 days)
+    - When you want FASTER mean reversion
+    - For comparison with OLS hedge ratio
+
+    WHY:
+    - STATIONARITY: Lower half-life = more stationary = better for trading
+    - Connection to AFML Ch 5: Creating stationary features
+    - Trade-off: May sacrifice some economic interpretation for speed
+
+    HOW (Micro E-Mini Example):
+    ```python
+    from arbitragelab.hedge_ratios import get_minimum_hl_hedge_ratio
+
+    # Compare OLS vs Min HL hedge ratios
+    # OLS (Engle-Granger)
+    eg = EngleGrangerPortfolio()
+    eg.fit(mes_mnq_prices)
+    ols_hedge = eg.hedge_ratios['MNQ'][0]
+    ols_spread = mes_prices - ols_hedge * mnq_prices
+    ols_hl = get_half_life_of_mean_reversion(ols_spread)
+
+    # Min half-life
+    hedge_dict, _, _, _, _ = get_minimum_hl_hedge_ratio(mes_mnq_prices, 'MES')
+    min_hl_hedge = hedge_dict['MNQ']
+    min_hl_spread = mes_prices - min_hl_hedge * mnq_prices
+    min_hl = get_half_life_of_mean_reversion(min_hl_spread)
+
+    print(f"OLS half-life: {ols_hl:.1f} days")
+    print(f"Min HL half-life: {min_hl:.1f} days")
+
+    # Use whichever has lower half-life
+    if min_hl < ols_hl:
+        best_hedge = min_hl_hedge
+    else:
+        best_hedge = ols_hedge
+    ```
+
+    VALIDATION:
+    - Both hedge ratios should produce similar half-lives
+    - If min HL is MUCH better, prefer it
+
+================================================================================
+PART 6: CODEPENDENCE (NON-LINEAR DEPENDENCE)
+================================================================================
+
+RESEARCH PAPER:
+- Lopez de Prado, M. "Codependence" Cornell lecture notes
+
+MLFINLAB FRAMEWORK CONNECTION:
+- AFML Ch 16: Hierarchical Risk Parity requires distance matrix
+- Pearson correlation is LINEAR only
+- Codependence captures NON-LINEAR dependencies
+- Critical for portfolio construction and clustering
+
+--------------------------------------------------------------------------------
+
+FILE: codependence/correlation.py
+--------------------------------------------------------------------------------
+
+26. angular_distance(x, y) -> √(0.5 × (1 - ρ))
+
+    WHAT: Metric distance from Pearson correlation
+
+    PROBLEM SOLVED: Pearson correlation is NOT a true metric (violates triangle inequality)
+                      Angular distance IS a metric - required for clustering
+
+    WHEN TO USE (Micro E-Minis):
+    - Hierarchical clustering for pair selection
+    - HRP portfolio construction
+    - Distance-based methods
+
+    WHY: Satisfies metric properties required by clustering algorithms
+
+27. absolute_angular_distance(x, y) -> √(0.5 × (1 - |ρ|))
+
+    WHAT: Angular distance using ABSOLUTE correlation
+
+    WHEN TO USE: When you don't care about sign of correlation (just magnitude)
+
+    MICRO E-MINI USE: All micro E-minis are positively correlated, use absolute
+
+28. squared_angular_distance(x, y) -> √(0.5 × (1 - ρ²))
+
+    WHAT: Squared correlation distance
+
+    WHEN TO USE: Emphasizes strong correlations (penalizes weak correlations)
+
+29. distance_correlation(x, y)
+
+    WHAT: Captures LINEAR AND NON-LINEAR dependence
+
+    PROBLEM SOLVED: Pearson misses non-linear relationships
+
+    WHEN TO USE: When you suspect non-linear dependence (options, volatility)
+
+30. kullback_leibler_distance(corr_a, corr_b)
+
+    WHAT: Distance between two correlation matrices
+
+    WHEN TO USE: Detecting regime changes in correlation structure
+
+    ROLLING WINDOW USE: Measure correlation stability across windows
+
+31. norm_distance(matrix_a, matrix_b, r_val=2)
+
+    WHAT: Normalized Euclidean distance between two matrices
+
+    WHEN TO USE: General matrix comparison
+
+================================================================================
+PART 7: TRADING STRATEGIES (SIGNAL GENERATION)
+================================================================================
+
+--------------------------------------------------------------------------------
+
+FILE: trading/z_score.py
+--------------------------------------------------------------------------------
+
+32. BollingerBandsTradingRule class
+
+    WHO: E.P. Chan "Algorithmic Trading" (classic pairs trading signal)
+
+    WHAT: Z-score based Bollinger Bands:
+         - Entry: |z-score| >= entry_z (e.g., 3)
+         - Exit: |z-score| <= exit_z (e.g., entry_z - 1)
+         - Long when z < -entry_z, short when z > +entry_z
+
+    PROBLEM SOLVED: Converts stationary spread to actionable signals.
+                   Statistical trading rule based on mean reversion.
+
+    WHEN TO USE (Micro E-Minis):
+    - PRIMARY signal generation for mean reversion
+    - After cointegration confirmed
+    - For any stationary spread (OU process, cointegration, etc.)
+
+    WHERE IN PIPELINE:
+    1. Data: Cointegrated spread
+    2. Compute rolling z-score: (spread - mean) / std
+    3. Entry: |z| >= 3
+    4. Exit: |z| <= 0
+
+    WHY:
+    - Mean reversion: Deviations from mean are temporary
+    - Z-score: Standardized measure of deviation
+    - Connection to AFML Ch 3: Triple barrier uses similar logic
+
+    HOW (Micro E-Mini Example):
+    ```python
+    from arbitragelab.trading import BollingerBandsTradingRule
+
+    # Initialize
+    bb = BollingerBandsTradingRule(
+        sma_window=20,  # 20-period moving average
+        std_window=20,  # 20-period std deviation
+        entry_z_score=3,  # Enter at 3 sigma
+        exit_z_score_delta=6  # Exit at 3-6=-3 (cross zero)
+    )
+
+    # Process spread
+    signals = []
+    for spread_value in spread:
+        bb.update_spread_value(spread_value)
+
+        # Check entry
+        entry_flag, side = bb.check_entry_signal()
+        if entry_flag:
+            # Open position
+            bb.add_trade(start_timestamp, side)
+
+        # Check exit
+        closed = bb.update_trades(current_timestamp)
+
+    # Get signals
+    target_quantity = bb.get_target_quantity()
+    ```
+
+================================================================================
+PART 8: STOCHASTIC CONTROL APPROACH
+================================================================================
+
+RESEARCH PAPER:
+- Jurek, J.W. and Yang, H. (2007) "Dynamic Portfolio Selection in Arbitrage"
+
+MLFINLAB FRAMEWORK CONNECTION:
+- Solves DYNAMIC PORTFOLIO problem with finite horizon
+- Accounts for HORIZON RISK and DIVERGENCE RISK
+- Optimal position sizing over time
+
+--------------------------------------------------------------------------------
+
+FILE: stochastic_control_approach/ou_model_jurek.py
+--------------------------------------------------------------------------------
+
+33. OUModelJurek class
+
+    WHO: Jurek & Yang (2007) - finite horizon arbitrage
+
+    WHAT: Optimal dynamic position sizing for mean-reverting spread:
+         - Accounts for finite trading horizon
+         - Non-myopic preferences (look ahead)
+         - CRRA utility over terminal wealth
+         - Time-varying optimal positions
+
+    PROBLEM SOLVED: Leung-Li assumes INFINITE horizon.
+                   Real traders have finite horizon (contract expiration, etc.).
+                   Jurek solves for OPTIMAL positions with horizon risk.
+
+    WHEN TO USE (Micro E-Minis):
+    - NEAR CONTRACT EXPIRATION: MES contracts quarterly
+    - When you need to CLOSE positions by specific date
+    - For optimal position sizing (not just entry/exit)
+
+    WHY:
+    - HORIZON RISK: Spread might not mean revert before deadline
+    - Position must account for probability of convergence
+    - Connection to AFML Ch 10: Bet sizing for finite horizon
+
+    HOW (Micro E-Mini Example):
+    ```python
+    from arbitragelab.stochastic_control_approach import OUModelJurek
+
+    # Fit to spread
+    jurek = OUModelJurek()
+    jurek.fit(
+        price_data=spread,
+        data_frequency='D',
+        T=1/12  # 1 month horizon (until contract expiration)
+    )
+
+    # Get optimal position sizes over time
+    # Positions decrease as horizon approaches (less time to mean revert)
+    positions = jurek.optimal_positions()
+    ```
+
+    VALIDATION: Compare with Leung-Li - Jurek should be more conservative near deadline
+
+================================================================================
+PART 9: KALMAN FILTER APPROACH
+================================================================================
+
+RESEARCH PAPER:
+- Elliott, R.J. et al. (1995) "Hidden Markov Models: Estimation and Control"
+- Various: Kalman filter applications to pairs trading
+
+MLFINLAB FRAMEWORK CONNECTION:
+- State-space model for DYNAMIC hedge ratio
+- Hedge ratio evolves over time (not static like OLS)
+- Accounts for PARAMETER UNCERTAINTY
+
+--------------------------------------------------------------------------------
+
+FILE: other_approaches/kalman_filter.py
+--------------------------------------------------------------------------------
+
+34. KalmanFilterStrategy class
+
+    WHO: Kalman (1960) - state-space model, applied to trading by E.P. Chan
+
+    WHAT: Dynamic hedge ratio estimation using Kalman filter:
+         - State: Hedge ratio β (hidden/latent)
+         - Observation: Price relationship
+         - Updates β as new data arrives
+         - Provides uncertainty bounds (forecast error std)
+
+    PROBLEM SOLVED: STATIC hedge ratio (OLS) assumes β is constant.
+                   In reality, relationships evolve (regimes, etc.).
+                   Kalman filter tracks this evolution.
+
+    WHEN TO USE (Micro E-Minis):
+    - When hedge ratio is STABLE but EVOLVING
+    - For real-time updating (no refitting needed)
+    - When you want uncertainty bounds for risk management
+
+    WHERE IN PIPELINE:
+    1. Data: MES and MNQ prices
+    2. Initialize Kalman filter
+    3. For each new observation: update()
+    4. Hedge ratio evolves: β_t = β_{t-1} + K × error
+    5. Trade on forecast errors: spread = y - β×x
+
+    WHY:
+    - PARAMETER UNCERTAINTY: Kalman filter provides covariance P
+    - ADAPTIVE: Hedge ratio adjusts to new information
+    - BAYESIAN: Posterior = Prior × Likelihood
+    - Connection to AFML: Online learning vs batch learning
+
+    HOW (Micro E-Mini Example):
+    ```python
+    from arbitragelab.other_approaches import KalmanFilterStrategy
+
+    # Initialize (tune these via cross-validation)
+    kf = KalmanFilterStrategy(
+        observation_covariance=0.001,  # Measurement noise
+        transition_covariance=1e-4  # Process noise
+    )
+
+    # Process data sequentially
+    hedge_ratios = []
+    spread_std = []
+
+    for mes_price, mnq_price in zip(mes_prices, mnq_prices):
+        kf.update(mes_price, mnq_price)
+        hedge_ratios.append(kf.hedge_ratios[-1])
+        spread_std.append(kf.spread_std_series[-1])
+
+    # Generate signals using forecast errors
+    signals = kf.trading_signals(entry_std_score=2, exit_std_score=-2)
+    ```
+
+    CRITICAL: Kalman filter is SENSITIVE to parameters - must tune via cross-validation
+
+================================================================================
+SUMMARY BY STRATEGY TYPE
+================================================================================
+
++-------------------+---------------------+-------------------+---------------------+
+| STRATEGY          | PRIMARY USE         | MICRO E-MINI FIT | BIAS PREVENTED      |
++-------------------+---------------------+-------------------+---------------------+
+| Engle-Granger     | 2-asset cointegration| EXCELLENT        | Spurious regression |
+| Johansen          | 3+ asset portfolio  | GOOD             | Multicollinearity   |
+| Distance          | Initial screening   | GOOD (w/ verify) | Sample selection    |
+| Copula            | Tail risk           | EXCELLENT        | Normality bias      |
+| OU Model (Leung)  | Optimal entry/exit  | EXCELLENT        | Ad-hoc selection    |
+| OU Model (Bertram)| Fast optimization   | GOOD             | Ad-hoc selection    |
+| Kalman Filter     | Dynamic hedge ratio | GOOD             | Static assumption   |
+| Jurek             | Finite horizon      | GOOD (expiration)| Infinite horizon    |
+| Min Half-Life     | Faster reversion    | GOOD             | Slow reversion      |
+| Bollinger Bands   | Signal generation   | EXCELLENT        | Ad-hoc thresholds   |
++-------------------+---------------------+-------------------+---------------------+
+
+================================================================================
+ROLLING WINDOW VALIDATION FRAMEWORK
+================================================================================
+
+PURPOSE: Reveal stability and prevent overfitting
+
+STEP 1: Define Windows
+  - Total data: 5 years of daily MES, MNQ, MYM, M2K
+  - Train: 6 months
+  - Test: 1 month
+  - Step: 1 month
+  - Total windows: As many as data allows
+
+STEP 2: For Each Window
+  - Pair discovery (Distance approach)
+  - Verify cointegration (Engle-Granger)
+  - Fit OU model for optimal levels
+  - Backtest on test period
+  - Record Sharpe, win rate, parameters
+
+STEP 3: Validate
+  - Mean Sharpe > 0.8
+  - Std Sharpe < 0.5 (stable)
+  - No degradation (plot vs window)
+  - Win rate > 55%
+
+STEP 4: Deploy
+  - Use median parameters across windows (robust to outliers)
+  - Monitor live performance vs validation range
+
+================================================================================
+CRITICAL WARNINGS FOR ARBITRAGELAB
+================================================================================
+
+1. DISTANCE APPROACH + NO COINTEGRATION VERIFICATION = SPURIOUS REGRESSION
+   - ALWAYS verify with Engle-Granger or Johansen!
+
+2. GAUSSIAN COPULA = TAIL RISK UNDERESTIMATION
+   - Use Student-t copula for realistic tail dependence
+
+3. STATIC HEDGE RATIO = PARAMETER STATIONARITY ASSUMPTION
+   - Relationships evolve - use Kalman filter or re-fit regularly
+
+4. INFINITE HORIZON ASSUMPTION = UNREALISTIC FOR FUTURES
+   - Contracts expire - use Jurek model near expiration
+
+5. AD-HOC THRESHOLDS = OVERFITTING RISK
+   - Use Leung-Li or Bertram for MATHEMATICAL OPTIMALITY
+
+6. SINGLE BACKTEST = DATA SNOOPING BIAS
+   - Use rolling window validation
+
+7. IGNORING TRANSACTION COSTS = INFLATED EXPECTED RETURNS
+   - Always include costs in optimization
+
+================================================================================
+END OF ARBITRAGELAB COMPLETE REFERENCE
+================================================================================
