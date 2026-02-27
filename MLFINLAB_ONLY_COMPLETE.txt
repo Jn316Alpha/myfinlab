@@ -1,0 +1,760 @@
+================================================================================
+           MLFINLAB COMPLETE REFERENCE - EVERY SCRIPT
+              Aligned with "Advances in Financial Machine Learning"
+                    by Marcos Lopez de Prado
+================================================================================
+
+TOTAL FUNCTIONS CATALOGUED: 80+
+
+Every single script in MLFinLab with WHAT, WHEN, WHERE, WHY, HOW from AFML book.
+
+================================================================================
+CHAPTER 2: FINANCIAL DATA STRUCTURES (SOLVING SAMPLING BIAS)
+================================================================================
+
+FILE: data_structures/standard_data_structures.py
+--------------------------------------------------------------------------------
+
+1. get_dollar_bars(file_path, threshold=70000000, batch_size=20000000, verbose=True, to_csv=False, output_path=None)
+   AFML: Chapter 2, Section 2.3, Page 25
+   WHAT: Creates new bar every X dollars traded (price × volume)
+   PROBLEM SOLVED: Time bars have uneven information content (sampling bias). Some time periods have more trading activity than others.
+   WHEN TO USE: PRIMARY CHOICE for ML - best statistical properties for most strategies
+   WHY: Returns more symmetric, less autocorrelation, homoscedastic (constant variance)
+   HOW: Reads CSV, accumulates dollar_volume until threshold, creates bar with OHLCV
+
+2. get_volume_bars(file_path, threshold=28224, batch_size=20000000, verbose=True, to_csv=False, output_path=None)
+   AFML: Chapter 2, Section 2.3, Page 25
+   WHAT: Creates new bar every X shares/contracts traded
+   PROBLEM SOLVED: Time bars have uneven information content
+   WHEN TO USE: When price effects don't matter (e.g., equal-weighted contracts)
+   WHY: Better than time bars, but dollar bars usually superior
+   HOW: Accumulates volume until threshold, creates bar
+
+3. get_tick_bars(file_path, threshold=2800, batch_size=20000000, verbose=True, to_csv=False, output_path=None)
+   AFML: Chapter 2, Section 2.3, Page 25
+   WHAT: Creates new bar every N transactions
+   PROBLEM SOLVED: Time bars have uneven information content
+   WHEN TO USE: Illiquid instruments, when every trade matters equally
+   WHY: Simpler than dollar/volume, but ignores trade size
+
+FILE: data_structures/imbalance_data_structures.py
+--------------------------------------------------------------------------------
+
+4. get_dollar_imbalance_bars(file_path, num_prev_bars, exp_num_ticks_init=100000, batch_size=2e7, verbose=True, to_csv=False, output_path=None)
+   AFML: Chapter 2, Section 2.4, Page 29
+   WHAT: Samples when cumulative signed dollar imbalance exceeds threshold
+   PROBLEM SOLVED: Detects order flow toxicity / informed trading (when smart money enters)
+   WHEN TO USE: HFT, market making, detecting informed traders, regime changes
+   WHY: Bar formation coincides with supply/demand shifts - information-driven sampling
+   HOW: Tracks signed tick imbalance, bars form when imbalance > E[imbalance] × E[ticks]
+
+5. get_volume_imbalance_bars(file_path, num_prev_bars, exp_num_ticks_init=100000, batch_size=2e7, verbose=True, to_csv=False, output_path=None)
+   AFML: Chapter 2, Section 2.4, Page 29
+   WHAT: Samples when cumulative signed volume imbalance exceeds threshold
+   PROBLEM SOLVED: Detects order flow imbalance without price weighting
+   WHEN TO USE: Similar to dollar imbalance but ignores price component
+   WHY: Useful when price effects are less important than volume flow
+
+6. get_tick_imbalance_bars(file_path, num_prev_bars, exp_num_ticks_init=100000, batch_size=2e7, verbose=True, to_csv=False, output_path=None)
+   AFML: Chapter 2, Section 2.4, Page 29
+   WHAT: Samples when cumulative signed tick imbalance exceeds threshold
+   PROBLEM SOLVED: Detects order flow imbalance at simplest level
+   WHEN TO USE: Simple order flow detection without volume/price weighting
+   WHY: Most basic imbalance bar - fast calculation
+
+FILE: data_structures/run_data_structures.py
+--------------------------------------------------------------------------------
+
+7. get_dollar_run_bars(file_path, num_prev_bars, exp_num_ticks_init=100000, batch_size=2e7, verbose=True, to_csv=False, output_path=None)
+   AFML: Chapter 2, Section 2.5, Page 31
+   WHAT: Run bars - detects when buying pressure exceeds selling pressure OR vice versa
+   PROBLEM SOLVED: Imbalance bars only detect one-sided runs. Run bars detect both buy and sell runs.
+   WHEN TO USE: Detecting momentum in either direction (buying pressure or selling pressure)
+   WHY: Captures when one side dominates - stronger signal than imbalance alone
+   HOW: Tracks buy/sell imbalance separately, bars form when max(buy_theta, sell_theta) exceeds threshold
+
+8. get_volume_run_bars(file_path, num_prev_bars, exp_num_ticks_init=100000, batch_size=2e7, verbose=True, to_csv=False, output_path=None)
+   AFML: Chapter 2, Section 2.5, Page 31
+   WHAT: Volume-based run bars
+   WHEN TO USE: Run detection without price weighting
+
+9. get_tick_run_bars(file_path, num_prev_bars, exp_num_ticks_init=100000, batch_size=2e7, verbose=True, to_csv=False, output_path=None)
+   AFML: Chapter 2, Section 2.5, Page 31
+   WHAT: Tick-based run bars
+   WHEN TO USE: Simplest run detection
+
+FILE: data_structures/base_bars.py
+--------------------------------------------------------------------------------
+
+10. BaseBars class (abstract base class)
+    WHAT: Foundation for all bar types - shared logic
+    METHODS: _assert_csv, _update_high_low, _create_bars, _apply_tick_rule, _get_imbalance, batch_run
+    WHEN TO USE: Understanding bar construction internals, extending with custom bar types
+    WHY: Avoids code duplication across all bar implementations
+
+FILE: multi_product/etf_trick.py
+--------------------------------------------------------------------------------
+
+11. ETFTrick.get_etf_series(self, batch_size=1e5)
+    AFML: Chapter 2, Section 2.5, Page 33
+    WHAT: Back-adjusts futures for continuous series accounting for rollover costs
+    PROBLEM SOLVED: Futures expire - need continuous series for backtesting without artificial gaps
+    WHEN TO USE: Trading futures, creating continuous price series from multiple contracts
+    WHY: Accounts for roll costs, prevents artificial jumps at rollover - realistic backtesting
+    HOW: Uses o(t), p(t), w(t), d(t), φ(t) from AFML book to compute K_t value
+
+12. get_futures_roll_series(data_df, open_col, close_col, sec_col, current_sec_col, roll_backward=False, method='absolute')
+    WHAT: Creates continuous futures series via roll adjustment
+    WHEN TO USE: Simpler alternative to ETF trick for futures rolling
+    HOW: Computes gaps at rollover dates, adjusts prices backward/forward
+
+================================================================================
+CHAPTER 3: LABELING (SOLVING LOOK-AHEAD BIAS)
+================================================================================
+
+FILE: labeling/labeling.py
+--------------------------------------------------------------------------------
+
+13. get_daily_vol(close, lookback=100)
+    AFML: Snippet 3.1, Page 44
+    WHAT: Computes daily volatility using EWMA stdev at intraday points
+    PROBLEM SOLVED: Volatility changes over time - need dynamic barriers for triple barrier
+    WHEN TO USE: Before triple barrier, for risk management, setting PT/SL levels
+    WHY: Makes profit/loss levels adaptive to current market conditions
+    HOW: Computes daily returns from close, applies EWMA with lookback window
+
+14. add_vertical_barrier(t_events, close, num_days=0, num_hours=0, num_minutes=0, num_seconds=0)
+    AFML: Snippet 3.4, Page 49
+    WHAT: Adds maximum holding period (time stop) to events
+    PROBLEM SOLVED: Prevents indefinite position holding - forces decision within timeframe
+    WHEN TO USE: ALWAYS with triple barrier - sets max holding period
+    WHY: Time is money - forces model to predict within reasonable timeframe, capital efficiency
+    HOW: Adds timedelta to each t_event, finds closest bar in future
+
+15. get_events(close, t_events, pt_sl, target, min_ret, num_threads, vertical_barrier_times=False, side_prediction=None)
+    AFML: Snippet 3.6, Page 50
+    WHAT: Main triple barrier labeling orchestrator - creates properly labeled observations
+    PROBLEM SOLVED: Creates ML labels without look-ahead bias, accounts for risk
+    WHEN TO USE: CORE function for any supervised learning with financial data
+    WHY: Labels account for risk-adjusted outcomes, prevents look-ahead, enables meta-labeling
+    RETURNS: DataFrame with t1 (end time), trgt (target), side (prediction), pt (profit multiple), sl (stop multiple)
+    HOW: Applies vertical barrier, filters by min_ret, applies PT/SL in parallel
+
+16. get_bins(triple_barrier_events, close)
+    AFML: Snippet 3.7, Page 51
+    WHAT: Computes final labels from triple barrier events
+    PROBLEM SOLVED: Converts events to ML labels {-1, 0, 1} or {0, 1} for meta-labeling
+    WHEN TO USE: After get_events - final step before training
+    WHY: Returns actionable labels for ML training
+    RETURNS: DataFrame with ret (return), trgt (target), bin (label), side (if meta-labeling)
+    HOW: Computes log return, applies side for meta-labeling, determines which barrier touched
+
+17. barrier_touched(out_df, events)
+    AFML: Snippet 3.9, Page 55
+    WHAT: Determines which barrier was touched first (top=1, bottom=-1, vertical=0)
+    WHEN TO USE: Called internally by get_bins
+    HOW: Compares return to pt/sl levels, returns which barrier hit first
+
+18. drop_labels(events, min_pct=0.05)
+    AFML: Snippet 3.8, Page 54
+    WHAT: Recursively drops rare labels (< min_pct frequency)
+    PROBLEM SOLVED: Class imbalance causes ML bias to majority class
+    WHEN TO USE: After get_bins when some labels < 5% frequency
+    WHY: Prevents "always predict majority" strategy, ensures balanced classes
+    HOW: Iteratively removes least frequent label until all labels >= min_pct
+
+19. apply_pt_sl_on_t1(close, events, pt_sl, molecule)
+    AFML: Snippet 3.2, Page 45
+    WHAT: Applies profit-taking and stop-loss to find first touch
+    WHEN TO USE: Called internally by get_events (parallelized)
+    HOW: For each event, checks if PT or SL hit before t1, returns timestamps
+
+================================================================================
+CHAPTER 4: SAMPLING (SOLVING SAMPLE OVERLAP PROBLEM)
+================================================================================
+
+FILE: sampling/bootstrapping.py
+--------------------------------------------------------------------------------
+
+20. get_ind_matrix(samples_info_sets, price_bars)
+    AFML: Snippet 4.3, Page 65
+    WHAT: Builds indicator matrix (which bars influence which labels)
+    PROBLEM SOLVED: Quantifies sample overlap - critical for sequential bootstrap
+    WHEN TO USE: Before sequential bootstrap, for uniqueness calculations, understanding overlap
+    WHY: Binary matrix foundation for all sampling algorithms
+    RETURNS: NumPy array (n_bars × n_samples) where 1 = bar influences label
+    HOW: For each label, marks all bars from label_start to label_end as 1
+
+21. get_ind_mat_average_uniqueness(ind_mat)
+    AFML: Snippet 4.4, Page 65
+    WHAT: Computes average uniqueness of indicator matrix
+    PROBLEM SOLVED: Single metric for overlap/redundancy across all samples
+    WHEN TO USE: Quick assessment of sample quality, comparing sampling methods
+    RETURNS: Float (0 to 1, higher = more unique)
+    HOW: Computes uniqueness = 1/concurrency for each sample, averages all
+
+22. get_ind_mat_label_uniqueness(ind_mat)
+    WHAT: Computes uniqueness for each label (element-wise)
+    PROBLEM SOLVED: Need per-sample uniqueness for sequential bootstrap
+    WHEN TO USE: Sequential bootstrap input, uniqueness weights
+    RETURNS: Series of uniqueness values (one per label)
+    HOW: Computes uniqueness = 1/concurrency for each element
+
+23. seq_bootstrap(ind_mat, sample_length=None, warmup_samples=None, compare=False, verbose=False, random_state=np.random.RandomState())
+    AFML: Snippet 4.5, 4.6, Page 65
+    WHAT: Sequential bootstrap - maximizes uniqueness by selecting least overlapping samples first
+    PROBLEM SOLVED: Standard bootstrap highly redundant for time series (overlapping labels)
+    WHEN TO USE: ALWAYS prefer over standard bootstrap for financial data
+    WHY: Selects samples with lowest uniqueness first - 2-3x higher uniqueness than standard bootstrap
+    RETURNS: Array of bootstrapped sample indices
+    HOW: Computes avg uniqueness, draws with probability inversely proportional to uniqueness, updates
+
+FILE: sampling/concurrent.py
+--------------------------------------------------------------------------------
+
+24. num_concurrent_events(close_series_index, label_endtime, molecule)
+    AFML: Snippet 4.1, Page 60
+    WHAT: Counts concurrent (overlapping) labels at each time point
+    PROBLEM SOLVED: Quantifies overlap needed for uniqueness calculations
+    WHEN TO USE: For sample weighting, uniqueness calculations, understanding label overlap
+    RETURNS: Series of concurrency counts
+    HOW: For each time point, counts how many labels are active
+
+25. _get_average_uniqueness(label_endtime, num_conc_events, molecule)
+    AFML: Snippet 4.2, Page 62
+    WHAT: Computes average uniqueness per label over its lifespan
+    WHEN TO USE: Called by get_av_uniqueness_from_triple_barrier
+    RETURNS: Series of uniqueness values (one per label)
+    HOW: For each label, averages 1/concurrency over its duration
+
+26. get_av_uniqueness_from_triple_barrier(triple_barrier_events, close_series, num_threads)
+    WHAT: Orchestrator - computes average uniqueness from triple barrier events
+    WHEN TO USE: For sample weights, sequential bootstrap input
+    RETURNS: DataFrame with 'tW' column (average uniqueness)
+    HOW: Computes concurrency, then averages 1/concurrency for each label
+
+FILE: sample_weights/attribution.py
+--------------------------------------------------------------------------------
+
+27. get_weights_by_return(triple_barrier_events, close_series, num_threads=5)
+    AFML: Snippet 4.10, Page 69
+    WHAT: Computes sample weights based on absolute return and concurrency
+    PROBLEM SOLVED: Samples with higher returns and lower concurrency should have more weight
+    WHEN TO USE: For training with sample weights, when returns magnitude matters
+    FORMULA: weight = sum(return / concurrency) over label's life
+    RETURNS: Series of normalized weights
+    WHY: Larger moves with less overlap = more informative = higher weight
+
+28. get_weights_by_time_decay(triple_barrier_events, close_series, num_threads=5, decay=1)
+    AFML: Snippet 4.11, Page 70
+    WHAT: Applies time decay - newer observations get more weight
+    PROBLEM SOLVED: Older observations may be less relevant in non-stationary markets (regime changes)
+    WHEN TO USE: For regime-changing markets, when recent data more important than old
+    PARAMETERS: decay=1 (no decay), 0<decay<1 (linear decay), decay=0 (erases oldest), decay<0 (cutoff)
+    RETURNS: Series of time-decayed weights
+    WHY: Adapts to non-stationarity - recent patterns more relevant than old patterns
+
+================================================================================
+CHAPTER 5: FRACTIONAL DIFFERENTIATION (SOLVING NON-STATIONARITY)
+================================================================================
+
+FILE: features/fracdiff.py
+--------------------------------------------------------------------------------
+
+29. frac_diff_ffd(series, diff_amt, thresh=1e-5)
+    AFML: Chapter 5, Section 5.5, Page 83 (PRIMARY CHOICE)
+    WHAT: Fixed-width fractional differentiation - creates stationary features while preserving memory
+    PROBLEM SOLVED: Creates stationary features required for ML while preserving long-term memory (d=1 loses memory)
+    WHEN TO USE: PRIMARY CHOICE for feature engineering on price series
+    WHY: Stationary features required for ML, but d=1 loses all memory. d=0.3-0.5 preserves memory while achieving stationarity.
+    PARAMETERS: diff_amt=0.3-0.5 optimal (stationarity with memory), thresh controls window width (smaller = longer window)
+    RETURNS: DataFrame of fractionally differenced series
+    HOW: Computes weights, applies fixed-width window to series
+
+30. frac_diff(series, diff_amt, thresh=0.01)
+    AFML: Chapter 5, Section 5.5, Page 82
+    WHAT: Expanding window fractional differentiation
+    WHEN TO USE: When you can tolerate expanding window (smaller datasets)
+    WHY: Fixed width (frac_diff_ffd) is more efficient - this mainly for comparison
+
+31. get_weights(diff_amt, size)
+    AFML: Chapter 5, Section 5.4.2, Page 78
+    WHAT: Computes weights for fractional differentiation (expanding window)
+    WHEN TO USE: Called by frac_diff
+    HOW: Iterative formula: weights[k] = -weights[k-1] × (diff_amt - k + 1) / k
+
+32. get_weights_ffd(diff_amt, thresh, lim)
+    AFML: Chapter 5, Section 5.4.2, Page 83
+    WHAT: Computes weights for fixed-width fractional differentiation
+    WHEN TO USE: Called by frac_diff_ffd
+    WHY: Stops adding weights when weight < thresh - determines window width
+    HOW: Iterative formula with early stopping when weights become negligible
+
+33. FractionalDifferentiation class
+    WHAT: Encapsulates all fracdiff methods
+    METHODS: get_weights, frac_diff, get_weights_ffd, frac_diff_ffd
+    WHEN TO USE: Object-oriented interface for fracdiff operations
+
+================================================================================
+CHAPTER 7: CROSS-VALIDATION (SOLVING TRAIN/TEST LEAKAGE)
+================================================================================
+
+FILE: cross_validation/cross_validation.py
+--------------------------------------------------------------------------------
+
+34. ml_get_train_times(samples_info_sets, test_times)
+    AFML: Snippet 7.1, Page 106
+    WHAT: Purges training observations that overlap with test labels
+    PROBLEM SOLVED: Prevents information leak from test to training (look-ahead bias in CV)
+    WHEN TO USE: Before any cross-validation, within PurgedKFold
+    WHY: Removes training samples that start/end/overlap with test period - ensures test is truly out-of-sample
+    RETURNS: Purged training times
+    HOW: Removes training where: start during test, end during test, encompasses test
+
+35. PurgedKFold(n_splits=3, samples_info_sets=None, pct_embargo=0.0)
+    AFML: Chapter 7, Page 107
+    WHAT: K-Fold CV with purging and embargo - prevents train/test leakage
+    PROBLEM SOLVED: Standard K-Fold has look-ahead bias from overlapping labels in time series
+    WHEN TO USE: ALWAYS use for financial ML CV instead of sklearn KFold
+    WHY: Purges overlapping training samples, adds embargo buffer zone for extra safety
+    PARAMETERS: n_splits=3-5 (typical), pct_embargo=0.01 (1% embargo after test set)
+    METHOD: split(X, y, groups) yields (train, test) indices
+    HOW: Splits data, purges overlapping training, adds embargo after test
+
+36. ml_cross_val_score(classifier, X, y, cv_gen, sample_weight=None, scoring='neg_log_loss')
+    AFML: Snippet 7.4, Page 110
+    WHAT: Cross-validation with purging, embargo, and sample weights
+    PROBLEM SOLVED: sklearn's cross_val_score doesn't handle financial ML needs
+    WHEN TO USE: For model evaluation with PurgedKFold
+    SUPPORTED: neg_log_loss, accuracy, f1, precision, recall, roc_auc
+    RETURNS: Array of scores (one per fold)
+    WHY: Combines purging, embargo, sample weights into one CV function
+
+================================================================================
+CHAPTER 8: FEATURE IMPORTANCE (SOLVING FEATURE SELECTION BIAS)
+================================================================================
+
+FILE: feature_importance/importance.py
+--------------------------------------------------------------------------------
+
+37. feature_importance_mean_decrease_impurity(clf, feature_names)
+    AFML: Snippet 8.2, Page 115
+    WHAT: MDI - feature importance from tree ensembles (in-sample)
+    PROBLEM SOLVED: Identifies important features from trained models
+    WHEN TO USE: For random forests, quick first pass at feature selection
+    LIMITATIONS: Biased to high-cardinality features, in-sample only (can overfit)
+    RETURNS: DataFrame with 'mean' and 'std' importance
+    HOW: Extracts feature_importances_ from each tree, averages
+
+38. feature_importance_mean_decrease_accuracy(clf, X, y, cv_gen, sample_weight=None, scoring='neg_log_loss')
+    AFML: Snippet 8.3, Page 116-117
+    WHAT: MDA - OOS feature importance via permutation (PRIMARY METHOD)
+    PROBLEM SOLVED: MDI is in-sample - MDA is out-of-sample
+    WHEN TO USE: PRIMARY method for feature importance
+    HOW: Shuffles each feature, measures score drop - larger drop = more important
+    WHY: Out-of-sample, model-agnostic, accounts for feature interactions
+    RETURNS: DataFrame with 'mean' and 'std' importance
+
+39. feature_importance_sfi(clf, X, y, cv_gen, sample_weight=None, scoring='neg_log_loss')
+    AFML: Snippet 8.4, Page 118
+    WHAT: SFI - tests each feature independently (single feature importance)
+    PROBLEM SOLVED: MDA can't distinguish redundant vs complementary features
+    WHEN TO USE: To identify features with standalone predictive power
+    HOW: Train model using only one feature at a time
+    RETURNS: DataFrame with 'mean' and 'std' scores
+    WHY: Determines if feature has predictive power on its own
+
+40. plot_feature_importance(imp, oob_score, oos_score, savefig=False, output_path=None)
+    AFML: Snippet 8.10, Page 124
+    WHAT: Plots feature importance with error bars
+    WHEN TO USE: For visualizing and reporting feature importance
+    HOW: Creates bar chart with mean importance and std error bars
+
+FILE: feature_importance/orthogonal.py
+--------------------------------------------------------------------------------
+
+41. get_orthogonal_features(feature_df, variance_thresh=0.95)
+    AFML: Snippet 8.5, Page 119
+    WHAT: PCA compression - creates orthogonal features to solve multicollinearity
+    PROBLEM SOLVED: Multicollinearity, overfitting from correlated features
+    WHEN TO USE: For dimensionality reduction, highly correlated features
+    HOW: Standardize, compute eigenvalues, keep PCs explaining variance_thresh
+    RETURNS: Array of orthogonal features (principal components)
+    WHY: Reduces dimensionality while preserving variance, removes correlation
+
+42. feature_pca_analysis(feature_df, feature_importance, variance_thresh=0.95)
+    AFML: Snippet 8.6, Page 121
+    WHAT: Correlation between feature importance and PCA ranking - validates ML features
+    PROBLEM SOLVED: Checks if feature importance is meaningful or just noise
+    WHEN TO USE: To check if feature importance is capturing real structure
+    RETURNS: Dict with Kendall, Spearman, Pearson, Weighted_Kendall correlations
+    WHY: High correlation = features capture real structure, low correlation = possible overfitting
+
+================================================================================
+CHAPTER 10: BET SIZING (CONVERTING PROBABILITIES TO POSITIONS)
+================================================================================
+
+FILE: bet_sizing/bet_sizing.py
+--------------------------------------------------------------------------------
+
+43. bet_size_probability(events, prob, num_classes, pred=None, step_size=0.0, average_active=False, num_threads=1)
+    WHAT: Converts predicted probabilities to bet sizes
+    PROBLEM SOLVED: Translates ML predictions to position sizes
+    WHEN TO USE: After model prediction, for meta-labeling strategies
+    HOW: Get signal, average concurrent signals, discretize (optional)
+    RETURNS: Series of bet sizes
+
+44. bet_size_dynamic(current_pos, max_pos, market_price, forecast_price, cal_divergence=10, cal_bet_size=0.95, func='sigmoid')
+    AFML: Chapter 10, Section 10.4
+    WHAT: Dynamic bet sizing based on price divergence between forecast and market
+    WHEN TO USE: For real-time position sizing as prices move
+    RETURNS: DataFrame with bet_size, t_pos (target position), l_p (limit price)
+    HOW: Uses sigmoid or power function to size based on forecast error
+
+45. bet_size_budget(events_t1, sides)
+    AFML: Chapter 10, Section 10.2
+    WHAT: Linear bet sizing based on concurrent positions (budget-based)
+    PROBLEM SOLVED: How to size positions when multiple bets overlap?
+    WHEN TO USE: Simple budget-based sizing, fixed position limits
+    RETURNS: DataFrame with bet_size (difference between avg long and avg short)
+    HOW: c_t = active_long - active_short, normalized
+
+46. bet_size_reserve(events_t1, sides, fit_runs=100, epsilon=1e-5, factor=5, variant=2, max_iter=10_000, num_workers=1, return_parameters=False)
+    WHAT: Advanced sizing using mixture of 2 Gaussians fit to concurrent positions
+    PROBLEM SOLVED: Linear sizing may not match distribution of concurrent bets
+    WHEN TO USE: For more sophisticated sizing based on distribution of concurrent bets
+    RETURNS: Sigmoid-shaped bet sizes based on fitted mixture
+    HOW: Fits 2-Gaussian mixture to c_t, uses CDF for sizing
+
+FILE: bet_sizing/ch10_snippets.py
+--------------------------------------------------------------------------------
+
+47. get_signal(prob, num_classes, pred=None)
+    AFML: Snippet 10.1, Page 157
+    WHAT: Base conversion from probabilities to bet size (without averaging/discretization)
+    FORMULA: (prob - 1/num_classes) / sqrt(prob × (1 - prob))
+    WHEN TO USE: First step in bet sizing pipeline
+    HOW: Applies formula, optionally multiplies by side prediction
+
+48. avg_active_signals(signals, num_threads=1)
+    AFML: Snippet 10.2, Page 158
+    WHAT: Averages bet sizes of all concurrently active bets
+    PROBLEM SOLVED: Multiple bets active simultaneously - need to reduce total exposure
+    WHEN TO USE: When multiple bets overlap (common in financial ML)
+    HOW: At each time point, average signals of all active bets
+
+49. discrete_signal(signal0, step_size)
+    AFML: Snippet 10.3, Page 159
+    WHAT: Discretizes bet size to prevent overtrading
+    PROBLEM SOLVED: Small adjustments waste money on transaction costs
+    WHEN TO USE: To reduce transaction costs, when small adjustments impractical
+    HOW: Rounds to nearest step_size multiple, caps at [-1, 1]
+
+50. bet_size(w_param, price_div, func)
+    WHAT: Core bet size calculation (sigmoid or power)
+    WHEN TO USE: Called by bet_size_dynamic
+
+51. get_target_pos(w_param, forecast_price, market_price, max_pos, func)
+    WHAT: Computes target position size
+    WHEN TO USE: Position sizing with dynamic model
+
+52. limit_price(target_pos, pos, forecast_price, w_param, max_pos, func)
+    WHAT: Computes limit price for orders
+    WHEN TO USE: Order placement with dynamic sizing
+
+53. get_w(price_div, m_bet_size, func)
+    WHAT: Calibrates width parameter for bet sizing
+    WHEN TO USE: Setting up dynamic bet sizing parameters
+
+54-65. Sigmoid and Power function variants
+    bet_size_sigmoid, get_target_pos_sigmoid, inv_price_sigmoid, limit_price_sigmoid, get_w_sigmoid
+    bet_size_power, get_target_pos_power, inv_price_power, limit_price_power, get_w_power
+    WHAT: Sigmoid and power variants of above functions
+    WHEN TO USE: Choose functional form for bet sizing curve
+    WHY: Sigmoid = smooth S-curve, Power = sharper response
+
+FILE: bet_sizing/ef3m.py
+--------------------------------------------------------------------------------
+
+66. M2N class
+    AFML: Lopez de Prado and Foreman (2014) - EF3M Algorithm
+    WHAT: Fits mixture of 2 Gaussians to concurrent positions distribution
+    WHEN TO USE: For bet_size_reserve, advanced position sizing
+    PARAMETERS: [mu_1, mu_2, sigma_1, sigma_2, p_1] (two means, two stdevs, mixing probability)
+    METHODS: fit(), single_fit_loop(), mp_fit()
+    WHY: Models distribution of concurrent long/short positions for sizing
+
+67. most_likely_parameters(data, ignore_columns='error', res=10_000)
+    WHAT: Uses KDE to find most likely parameters from fit results
+    WHEN TO USE: After M2N.mp_fit() to extract best parameters
+    HOW: Fits KDE to each parameter, finds mode
+
+================================================================================
+CHAPTER 16: PORTFOLIO OPTIMIZATION
+================================================================================
+
+FILE: portfolio_optimization/hrp.py
+--------------------------------------------------------------------------------
+
+68. HierarchicalRiskParity.allocate(asset_prices, resample_by='B', use_shrinkage=False)
+    AFML: Chapter 16, Page 216
+    WHAT: HRP portfolio allocation using hierarchical clustering
+    PROBLEM SOLVED: CLA unstable, covariance matrix inversion issues with correlated assets
+    WHEN TO USE: PREFERRED method for portfolio allocation
+    WHY: No matrix inversion, hierarchical structure stable, better OOS performance than CLA
+    ALGORITHM: 1) Tree clustering, 2) Quasi-diagonalization, 3) Recursive bisection
+    HOW: Computes correlation matrix, hierarchical clustering, recursive bisection for weights
+
+FILE: portfolio_optimization/cla.py
+--------------------------------------------------------------------------------
+
+69. CLA.allocate(asset_prices, solution="cla_turning_points", resample_by="B")
+    AFML: Bailey and Lopez de Prado (2013)
+    WHAT: Critical Line Algorithm - classic mean-variance optimization
+    WHEN TO USE: When you need efficient frontier, comparison with HRP
+    SOLUTIONS: cla_turning_points (all turning points), max_sharpe, min_volatility, efficient_frontier
+    LIMITATIONS: Requires matrix inversion, sensitive to estimation errors (use HRP as alternative)
+
+FILE: portfolio_optimization/mean_variance.py
+--------------------------------------------------------------------------------
+
+70. MeanVarianceOptimisation.allocate(asset_prices, solution="inverse_variance", resample_by="B")
+    WHAT: Simple mean-variance optimization (inverse variance only)
+    SOLUTIONS: 'inverse_variance' - weight proportional to 1/variance
+    WHEN TO USE: Quick baseline, comparison with HRP/CLA
+    WHY: Simple, interpretable, but ignores correlations
+
+================================================================================
+CHAPTER 20: MULTIPROCESSING (SPEED)
+================================================================================
+
+FILE: util/multiprocess.py
+--------------------------------------------------------------------------------
+
+71. mp_pandas_obj(func, pd_obj, num_threads=24, mp_batches=1, lin_mols=True, **kargs)
+    AFML: Snippet 20.7, Page 310
+    WHAT: Parallelizes pandas operations across multiple cores
+    PROBLEM SOLVED: Financial ML computations are slow (triple barrier, features, etc.)
+    WHEN TO USE: For any slow pandas operations
+    HOW: Partitions atoms into molecules, processes in parallel, combines results
+    PARAMETERS: num_threads=workers, mp_batches=batches per core, lin_mols=linear/nested partitioning
+    RETURNS: Combined DataFrame or Series
+
+72. lin_parts(num_atoms, num_threads)
+    AFML: Snippet 20.5, Page 306
+    WHAT: Linear partitioning for parallelization (equal-sized chunks)
+    WHEN TO USE: Simple equal-sized partitions
+
+73. nested_parts(num_atoms, num_threads, upper_triangle=False)
+    AFML: Snippet 20.6, Page 308
+    WHAT: Nested partitioning for nested loops (triangular workloads)
+    WHEN TO USE: For triangular workloads (distance matrices, nested loops)
+
+FILE: util/fast_ewma.py
+--------------------------------------------------------------------------------
+
+74. ewma(arr_in, window)
+    WHAT: Exponentially weighted moving average (JIT-compiled with Numba)
+    WHEN TO USE: For fast EWMA computation, imbalance bars
+    WHY: Numba JIT compilation = fast, better than pandas.ewm() for small windows
+    HOW: y[t] = (x[t] + (1-α)x[t-1] + (1-α)²x[t-2] + ...) / (1 + (1-α) + (1-α)² + ...)
+
+================================================================================
+ENSEMBLE METHODS
+================================================================================
+
+FILE: ensemble/sb_bagging.py
+--------------------------------------------------------------------------------
+
+75. SequentiallyBootstrappedBaggingClassifier
+    WHAT: Bagging with sequential bootstrap instead of random bootstrap
+    PROBLEM SOLVED: Standard bagging uses random bootstrap - highly redundant for time series
+    WHEN TO USE: PREFERRED over sklearn's BaggingClassifier for financial ML
+    WHY: Higher uniqueness = less overfitting, better OOS performance
+    PARAMETERS: samples_info_sets, price_bars, base_estimator, n_estimators, max_samples, max_features
+
+76. SequentiallyBootstrappedBaggingRegressor
+    WHAT: Same as above but for regression
+    WHEN TO USE: For regression problems with time series data
+
+================================================================================
+FILTERS
+================================================================================
+
+FILE: filters/filters.py
+--------------------------------------------------------------------------------
+
+77. cusum_filter(raw_time_series, threshold, time_stamps=True)
+    AFML: Snippet 2.4, Page 39
+    WHAT: Symmetric CUSUM filter - detects shifts in mean
+    PROBLEM SOLVED: Identifies significant market movements, avoids noise sampling
+    WHEN TO USE: PRIMARY event detection method for mean reversion
+    WHY: Doesn't trigger on hovering around threshold, detects regime changes
+    PARAMETERS: threshold = 2-3 × daily stdev, can be dynamic (pd.Series)
+    RETURNS: DatetimeIndex of event timestamps
+    HOW: Tracks cumulative sum of log returns, triggers when abs(S_t) >= threshold
+
+78. z_score_filter(raw_time_series, mean_window, std_window, z_score=3, time_stamps=True)
+    WHAT: Z-score filter - triggers when value deviates by Z standard deviations
+    PROBLEM SOLVED: Alternative event detection method
+    WHEN TO USE: For identifying extreme moves, alternative to CUSUM
+    NOTE: CUSUM generally superior for sequential shifts
+
+================================================================================
+UTILITIES
+================================================================================
+
+FILE: util/utils.py
+--------------------------------------------------------------------------------
+
+79. get_daily_vol(close, lookback=100)
+    WHAT: Same as labeling.get_daily_vol - utility wrapper
+    WHEN TO USE: Import from either location
+
+================================================================================
+30-ITERATION FRAMEWORK (MARCOS RLM)
+================================================================================
+
+PURPOSE: Reveal stability and degradation patterns that single backtest cannot detect
+
+SETUP:
+  1. Split data into 30 rolling windows
+  2. For window i: train on [i, i+train_size], test on [i+train_size, i+train_size+test_size]
+  3. Shift forward by 1 period each iteration
+
+EXECUTION:
+  for iteration in range(30):
+      # Define train/test periods
+      train_start = iteration × step_size
+      train_end = train_start + train_length
+      test_start = train_end
+      test_end = test_start + test_length
+
+      # Get data slices
+      X_train = features[train_start:train_end]
+      y_train = labels[train_start:train_end]
+      X_test = features[test_start:test_end]
+      y_test = labels[test_start:test_end]
+
+      # Run full pipeline
+      events = get_events(close[train_start:test_end], ...)
+      bins = get_bins(events, close[train_start:test_end])
+
+      # Train model with purging/embargo
+      cv = PurgedKFold(n_splits=5, samples_info_sets=events['t1'], pct_embargo=0.01)
+      model.fit(X_train, y_train)
+
+      # Evaluate
+      score = model.score(X_test, y_test)
+      scores[iteration] = score
+
+ANALYSIS:
+  - Mean and std of scores across 30 iterations
+  - Degradation: plot score vs iteration number
+  - Stability: low std = stable strategy
+  - Overfit: declining scores = overfitting to early period
+
+VALIDATION CRITERIA:
+  - Mean Sharpe > 0.8 across 30 iterations
+  - Std Sharpe < 0.5 (stable performance)
+  - No severe degradation (scores not declining to zero)
+
+================================================================================
+PIPELINE ORDER (CRITICAL - FOLLOW THIS EXACTLY):
+================================================================================
+
+1. DATA PREPARATION
+   → get_dollar_bars() or load existing bars
+
+2. FEATURE ENGINEERING (BEFORE LABELING!)
+   → frac_diff_ffd(series, diff_amt=0.3)
+   → Additional features: zscore, RSI, momentum, etc.
+   → IMPORTANT: All features computed ONLY from past data!
+
+3. EVENT DETECTION
+   → cusum_filter() or z_score_filter()
+   → Generates t_events (candidate entry points)
+
+4. VOLATILITY ESTIMATION
+   → get_daily_vol(close, lookback=100)
+   → Provides dynamic thresholds for profit/loss
+
+5. VERTICAL BARRIERS
+   → add_vertical_barrier(t_events, close, num_days=X)
+   → Sets maximum holding period
+
+6. PRIMARY MODEL (optional, for meta-labeling)
+   → Generate side predictions (-1, 0, +1)
+
+7. TRIPLE BARRIER EVENTS
+   → get_events(close, t_events, pt_sl, target, min_ret, vertical_barrier_times, side_prediction)
+   → WITHOUT side: bins in {-1, 0, 1}
+   → WITH side: bins in {0, 1} (meta-labeling)
+
+8. GET LABELS
+   → get_bins(triple_barrier_events, close)
+   → Final ML labels
+
+9. SAMPLE UNIQUENESS
+   → get_ind_matrix()
+   → get_av_uniqueness_from_triple_barrier()
+
+10. SEQUENTIAL BOOTSTRAP
+    → seq_bootstrap()
+    → Maximizes sample uniqueness
+
+11. SAMPLE WEIGHTS
+    → get_weights_by_return() OR get_weights_by_time_decay()
+
+12. CROSS-VALIDATION
+    → PurgedKFold with n_splits
+    → Rolling window: train on period i, test on period i+1
+    → 30 iterations for stability analysis
+
+13. MODEL TRAINING
+    → RandomForest OR SequentiallyBootstrappedBaggingClassifier
+    → With sample_weights
+
+14. FEATURE IMPORTANCE
+    → feature_importance_mean_decrease_accuracy() (MDA)
+    → Select top features
+
+15. META-MODEL (optional)
+    → Train on primary predictions + features
+    → Predict: Will primary be correct?
+
+16. BET SIZING
+    → bet_size_probability()
+    → Convert probabilities to position sizes
+
+17. VALIDATION
+    → 30-iteration stability analysis
+
+18. PORTFOLIO CONSTRUCTION (optional)
+    → HRP: Hierarchical Risk Parity (PREFERRED)
+    → OR CLA: Critical Line Algorithm
+
+================================================================================
+SUMMARY BY AFML CHAPTER
+================================================================================
+
+Chapter 2 - Data Structures: 12 functions
+Chapter 3 - Labeling: 7 functions
+Chapter 4 - Sampling: 6 functions
+Chapter 5 - Features: 5 functions (fracdiff family)
+Chapter 7 - Cross-Validation: 3 functions
+Chapter 8 - Feature Importance: 6 functions
+Chapter 10 - Bet Sizing: 23 functions (including EF3M)
+Chapter 16 - Portfolio Optimization: 3 functions
+Chapter 20 - Multiprocessing: 5 functions
+Ensemble Methods: 2 classes
+Filters: 2 functions
+Sample Weights: 2 functions
+Utilities: 1 function
+
+TOTAL: 80+ FUNCTIONS
+
+================================================================================
+END OF MLFINLAB COMPLETE REFERENCE
+================================================================================
